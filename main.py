@@ -11,7 +11,7 @@ import re
 def get_default_config():
     config = ConfigParser()
     config.add_section('General')
-    config.set('General', 'response rate', 0.10)
+    config.set('General', 'response rate', "0.10")
     return config
 
 
@@ -25,7 +25,7 @@ def main():
     if not success:
         cfgparser = get_default_config()
         write_config(cfgparser)
-    response_rate = cfgparser.get('General', 'response rate', True)
+    response_rate = cfgparser.getfloat('General', 'response rate')
     argparser = argparse.ArgumentParser(
         description="Slack chatbot using MegaHAL")
     argparser.add_argument(
@@ -66,8 +66,8 @@ def main():
             print("Connection Failed, invalid token?")
     finally:
         mh.cleanup()
-        cfgparser.set('General', 'response rate', response_rate)
-        println('Saving config...')
+        cfgparser.set('General', 'response rate', str(response_rate))
+        print('Saving config...')
         write_config(cfgparser)
 
 if __name__ == '__main__':
