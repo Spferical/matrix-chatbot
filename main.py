@@ -19,6 +19,11 @@ def write_config(config):
     with open('config.cfg', 'wt') as configfile:
         config.write(configfile)
 
+def reply(sc, event, message):
+    channel = event['channel']
+    print("Reply: %s" % message)
+    sc.rtm_send_message(channel, message)
+
 def main():
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
@@ -52,20 +57,17 @@ def main():
                             else:
                                 rate = float(num)
                             response_rate = rate
-                            sc.rtm_send_message(
-                                event['channel'],
-                                "Response rate set to %f" % rate)
+                            reply(sc, event, "Response rate set to %f" % rate)
                         else:
                             match = re.search(
                                 "Eld, what is your response rate?", message)
                             if match:
-                                sc.rtm_send_message(
-                                    event['channel'],
-                                    "My response rate is set at %f." % response_rate)
+                                reply(sc, event,
+                                      "My response rate is set at %f."
+                                      % response_rate)
                             elif random.random() < response_rate:
-                                reply = mh.doreply(message)
-                                print("Replying: %s" % reply)
-                                sc.rtm_send_message(event['channel'], reply)
+                                response = mh.doreply(message)
+                                reply(sc, event, response)
                             else:
                                 mh.learn(message)
                 time.sleep(1)
