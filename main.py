@@ -2,11 +2,17 @@ from __future__ import print_function
 import time
 from slackclient import SlackClient
 import mh_python as mh
+import argparse
 import random
 
 
 def main():
-    token = ""
+    parser = argparse.ArgumentParser(
+        description="Slack chatbot using MegaHAL")
+    parser.add_argument(
+        "-t", "--token", type=str, help="Slack token", required=True)
+    args = vars(parser.parse_args())
+    token = args['token']
     sc = SlackClient(token)
     mh.initbrain()
     try:
