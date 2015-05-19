@@ -19,8 +19,9 @@ def main():
         if sc.rtm_connect():
             while True:
                 for event in sc.rtm_read():
-                    if event['type'] == 'message':
-                        message = event['text']
+                    if 'type' in event and event['type'] == 'message' \
+                            and 'text' in event:
+                        message = event['text'].encode('ascii', 'ignore')
                         print("Handling message: %s" % message)
                         if random.random() < 0.1:
                             reply = mh.doreply(message)
