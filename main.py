@@ -55,12 +55,19 @@ def main():
                             sc.rtm_send_message(
                                 event['channel'],
                                 "Response rate set to %f" % rate)
-                        elif random.random() < response_rate:
-                            reply = mh.doreply(message)
-                            print("Replying: %s" % reply)
-                            sc.rtm_send_message(event['channel'], reply)
                         else:
-                            mh.learn(message)
+                            match = re.search(
+                                "Eld, what is your response rate?", message)
+                            if match:
+                                sc.rtm_send_message(
+                                    event['channel'],
+                                    "My response rate is set at %f." % response_rate)
+                            elif random.random() < response_rate:
+                                reply = mh.doreply(message)
+                                print("Replying: %s" % reply)
+                                sc.rtm_send_message(event['channel'], reply)
+                            else:
+                                mh.learn(message)
                 time.sleep(1)
         else:
             print("Connection Failed, invalid token?")
