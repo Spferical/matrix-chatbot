@@ -70,7 +70,7 @@ def main():
                                 reply(sc, event, response)
                             else:
                                 mh.learn(message)
-                time.sleep(1)
+                time.sleep(2)
         else:
             print("Connection Failed, invalid token?")
     finally:
