@@ -1,0 +1,2 @@
+megahal==9.0.3
+slackclient==0.15
