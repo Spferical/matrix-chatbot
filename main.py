@@ -6,6 +6,7 @@ import argparse
 import random
 from ConfigParser import ConfigParser
 import re
+import json
 
 
 def get_default_config():
@@ -24,6 +25,11 @@ def reply(sc, event, message):
     print("Reply: %s" % message)
     sc.rtm_send_message(channel, message)
 
+def get_name(sc):
+    reply = sc.api_call("auth.test")
+    data = json.loads(reply.decode('utf-8'))
+    return data['user']
+
 def main():
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
@@ -41,6 +47,8 @@ def main():
     mh.initbrain()
     try:
         if sc.rtm_connect():
+            name = get_name(sc)
+            print("Detected name: %s" % name)
             while True:
                 for event in sc.rtm_read():
                     if 'type' in event and event['type'] == 'message' \
@@ -65,7 +73,7 @@ def main():
                                 reply(sc, event,
                                       "My response rate is set at %f."
                                       % response_rate)
-                            elif random.random() < response_rate:
+                            elif name in message or random.random() < response_rate:
                                 response = mh.doreply(message)
                                 reply(sc, event, response)
                             else:
