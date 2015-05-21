@@ -54,6 +54,9 @@ def main():
                     if 'type' in event and event['type'] == 'message' \
                             and 'text' in event:
                         message = event['text'].encode('ascii', 'ignore')
+                        # lowercase message so we can search it
+                        # case-insensitively
+                        message = message.lower()
                         print("Handling message: %s" % message)
                         match = re.search(
                             "Eld, set response rate to [0-9]{2}(%|)", message)
