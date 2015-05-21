@@ -59,7 +59,8 @@ def main():
                         message = message.lower()
                         print("Handling message: %s" % message)
                         match = re.search(
-                            "Eld, set response rate to [0-9]{2}(%|)", message)
+                            "%s, set response rate to [0-9]{2}(%%|)" % name,
+                            message)
                         if match:
                             words = match.group().split()
                             num = words[-1]
@@ -71,7 +72,8 @@ def main():
                             reply(sc, event, "Response rate set to %f" % rate)
                         else:
                             match = re.search(
-                                "Eld, what is your response rate?", message)
+                                "%s, what is your response rate?" % name,
+                                message)
                             if match:
                                 reply(sc, event,
                                       "My response rate is set at %f."
