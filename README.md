@@ -9,4 +9,5 @@ Slack-megahal connects to Slack via a bot integration and responds to messages a
 ## Usage
 
 `$ python main.py --token asdfasdfasdf`
+
 You may also want to "train" your megabot instance with a megabot.trn file.
