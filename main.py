@@ -41,8 +41,11 @@ def main():
         description="Slack chatbot using MegaHAL")
     argparser.add_argument(
         "-t", "--token", type=str, help="Slack token", required=True)
+    argparser.add_argument("--debug", help="Output raw events to help debug",
+                           action="store_true")
     args = vars(argparser.parse_args())
     token = args['token']
+    debug = args['debug']
     sc = SlackClient(token)
     mh.initbrain()
     try:
@@ -51,6 +54,8 @@ def main():
             print("Detected name: %s" % name)
             while True:
                 for event in sc.rtm_read():
+                    if debug:
+                        print(event)
                     if 'type' in event and event['type'] == 'message' \
                             and 'text' in event:
                         message = event['text'].encode('ascii', 'ignore')
