@@ -75,6 +75,7 @@ def main():
                                 rate = float(num)
                             response_rate = rate
                             reply(sc, event, "Response rate set to %f" % rate)
+                            time.sleep(1) # sleep to avoid rate limit
                         else:
                             match = re.search(
                                 "%s, what is your response rate?" % name,
@@ -83,9 +84,11 @@ def main():
                                 reply(sc, event,
                                       "My response rate is set at %f."
                                       % response_rate)
+                                time.sleep(1) # sleep to avoid rate limit
                             elif name in message or random.random() < response_rate:
                                 response = mh.doreply(message)
                                 reply(sc, event, response)
+                                time.sleep(1) # sleep to avoid rate limit
                             else:
                                 mh.learn(message)
                 time.sleep(2)
