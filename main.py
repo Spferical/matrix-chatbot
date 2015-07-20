@@ -7,6 +7,7 @@ import random
 from ConfigParser import ConfigParser
 import re
 import json
+import datetime
 
 
 def get_default_config():
@@ -52,8 +53,10 @@ def main():
         if sc.rtm_connect():
             name = get_name(sc)
             print("Detected name: %s" % name)
+            time_of_last_event = datetime.datetime.now()
             while True:
                 for event in sc.rtm_read():
+                    time_of_last_event = datetime.datetime.now()
                     if debug:
                         print(event)
                     if 'type' in event and event['type'] == 'message' \
@@ -91,6 +94,12 @@ def main():
                                 time.sleep(1) # sleep to avoid rate limit
                             else:
                                 mh.learn(message)
+
+                # avoid being disconnected by activity by pinging
+                inactivity = datetime.datetime.now() - time_of_last_event
+                if inactivity > datetime.timedelta(seconds=5):
+                    sc.server.ping()
+
                 time.sleep(2)
         else:
             print("Connection Failed, invalid token?")
