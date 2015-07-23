@@ -21,15 +21,18 @@ def write_config(config):
     with open('config.cfg', 'wt') as configfile:
         config.write(configfile)
 
+
 def reply(sc, event, message):
     channel = event['channel']
     print("Reply: %s" % message)
     sc.rtm_send_message(channel, message)
 
+
 def get_name(sc):
     reply = sc.api_call("auth.test")
     data = json.loads(reply.decode('utf-8'))
     return data['user']
+
 
 def main():
     cfgparser = ConfigParser()
@@ -40,9 +43,12 @@ def main():
     response_rate = cfgparser.getfloat('General', 'response rate')
     argparser = argparse.ArgumentParser(
         description="Slack chatbot using MegaHAL")
-    argparser.add_argument(
-        "-t", "--token", type=str, help="Slack token", required=True)
-    argparser.add_argument("--debug", help="Output raw events to help debug",
+    argparser.add_argument("-t", "--token",
+                           type=str,
+                           help="Slack token",
+                           required=True)
+    argparser.add_argument("--debug",
+                           help="Output raw events to help debug",
                            action="store_true")
     args = vars(argparser.parse_args())
     token = args['token']
@@ -78,20 +84,20 @@ def main():
                                 rate = float(num)
                             response_rate = rate
                             reply(sc, event, "Response rate set to %f" % rate)
-                            time.sleep(1) # sleep to avoid rate limit
+                            time.sleep(1)  # sleep to avoid rate limit
                         else:
-                            match = re.search(
-                                "%s, what is your response rate?" % name,
-                                message)
+                            match = re.search("%s, what is your response rate?"
+                                              % name, message)
                             if match:
                                 reply(sc, event,
-                                      "My response rate is set at %f."
-                                      % response_rate)
-                                time.sleep(1) # sleep to avoid rate limit
-                            elif name in message or random.random() < response_rate:
+                                      "My response rate is set at %f." %
+                                      response_rate)
+                                time.sleep(1)  # sleep to avoid rate limit
+                            elif name in message or random.random(
+                            ) < response_rate:
                                 response = mh.doreply(message)
                                 reply(sc, event, response)
-                                time.sleep(1) # sleep to avoid rate limit
+                                time.sleep(1)  # sleep to avoid rate limit
                             else:
                                 mh.learn(message)
 
@@ -108,6 +114,7 @@ def main():
         cfgparser.set('General', 'response rate', str(response_rate))
         print('Saving config...')
         write_config(cfgparser)
+
 
 if __name__ == '__main__':
     main()
