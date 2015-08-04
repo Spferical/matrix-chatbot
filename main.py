@@ -48,8 +48,9 @@ def global_callback(event):
                 client.join_room(room)
                 print('Joined room ' + room)
     elif event['type'] == 'm.room.message':
-        # only care about text messages
-        if event['content']['msgtype'] == 'm.text':
+        # only care about text messages by other people
+        if event['user_id'] != client.user_id and \
+                event['content']['msgtype'] == 'm.text':
             message = event['content']['body']
             # lowercase message so we can search it
             # case-insensitively
