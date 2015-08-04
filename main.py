@@ -1,7 +1,7 @@
 from __future__ import print_function
 import time
-from slackclient import SlackClient
 import mh_python as mh
+from matrix_client.client import MatrixClient
 import argparse
 import random
 from ConfigParser import ConfigParser
@@ -14,6 +14,10 @@ def get_default_config():
     config = ConfigParser()
     config.add_section('General')
     config.set('General', 'response rate', "0.10")
+    config.add_section('Login')
+    config.set('Login', 'username', 'username')
+    config.set('Login', 'password', 'password')
+    config.set('Login', 'server', 'http://matrix.org')
     return config
 
 
@@ -22,10 +26,10 @@ def write_config(config):
         config.write(configfile)
 
 
-def reply(sc, event, message):
-    channel = event['channel']
+def reply(client, event, message):
+    room = client.rooms[event['room_id']]
     print("Reply: %s" % message)
-    sc.rtm_send_message(channel, message)
+    room.send_text(message)
 
 
 def get_name(sc):
@@ -34,81 +38,77 @@ def get_name(sc):
     return data['user']
 
 
+def global_callback(event):
+    global response_rate, username, client
+    # join rooms if invited
+    if event['type'] == 'm.room.member':
+        if 'content' in event and 'membership' in event['content']:
+            if event['content']['membership'] == 'invite':
+                room = event['room_id']
+                client.join_room(room)
+                print('Joined room ' + room)
+    elif event['type'] == 'm.room.message':
+        # only care about text messages
+        if event['content']['msgtype'] == 'm.text':
+            message = event['content']['body']
+            # lowercase message so we can search it
+            # case-insensitively
+            message = message.lower()
+            print("Handling message: %s" % message)
+            match = re.search(
+                "%s, set response rate to [0-9]{2}(%%|)" % username,
+                message)
+            if match:
+                words = match.group().split()
+                num = words[-1]
+                if num[-1] == '%':
+                    rate = float(num[:-1]) / 100
+                else:
+                    rate = float(num)
+                response_rate = rate
+                reply(client, event, "Response rate set to %f" % rate)
+            else:
+                match = re.search(
+                    "%s, what is your response rate?" % username, message)
+                if match:
+                    reply(client, event,
+                        "My response rate is set at %f."
+                        % response_rate)
+                elif username in message or \
+                        random.random() < response_rate:
+                    response = mh.doreply(message)
+                    reply(client, event, response)
+                else:
+                    mh.learn(message)
+
 def main():
+    global response_rate, username, client
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
         cfgparser = get_default_config()
         write_config(cfgparser)
     response_rate = cfgparser.getfloat('General', 'response rate')
+    username = cfgparser.get('Login', 'username')
+    password = cfgparser.get('Login', 'password')
+    server = cfgparser.get('Login', 'server')
     argparser = argparse.ArgumentParser(
         description="Slack chatbot using MegaHAL")
-    argparser.add_argument("-t", "--token",
-                           type=str,
-                           help="Slack token",
-                           required=True)
     argparser.add_argument("--debug",
                            help="Output raw events to help debug",
                            action="store_true")
     args = vars(argparser.parse_args())
-    token = args['token']
     debug = args['debug']
-    sc = SlackClient(token)
     mh.initbrain()
+
     try:
-        if sc.rtm_connect():
-            name = get_name(sc)
-            print("Detected name: %s" % name)
-            time_of_last_event = datetime.datetime.now()
-            while True:
-                for event in sc.rtm_read():
-                    time_of_last_event = datetime.datetime.now()
-                    if debug:
-                        print(event)
-                    if 'type' in event and event['type'] == 'message' \
-                            and 'text' in event:
-                        message = event['text'].encode('ascii', 'ignore')
-                        # lowercase message so we can search it
-                        # case-insensitively
-                        message = message.lower()
-                        print("Handling message: %s" % message)
-                        match = re.search(
-                            "%s, set response rate to [0-9]{2}(%%|)" % name,
-                            message)
-                        if match:
-                            words = match.group().split()
-                            num = words[-1]
-                            if num[-1] == '%':
-                                rate = float(num[:-1]) / 100
-                            else:
-                                rate = float(num)
-                            response_rate = rate
-                            reply(sc, event, "Response rate set to %f" % rate)
-                            time.sleep(1)  # sleep to avoid rate limit
-                        else:
-                            match = re.search("%s, what is your response rate?"
-                                              % name, message)
-                            if match:
-                                reply(sc, event,
-                                      "My response rate is set at %f." %
-                                      response_rate)
-                                time.sleep(1)  # sleep to avoid rate limit
-                            elif name in message or random.random(
-                            ) < response_rate:
-                                response = mh.doreply(message)
-                                reply(sc, event, response)
-                                time.sleep(1)  # sleep to avoid rate limit
-                            else:
-                                mh.learn(message)
+        client = MatrixClient(server)
+        token = client.login_with_password(username, password)
+        client.add_listener(global_callback)
 
-                # avoid being disconnected by activity by pinging
-                inactivity = datetime.datetime.now() - time_of_last_event
-                if inactivity > datetime.timedelta(seconds=5):
-                    sc.server.ping()
+        while True:
+            client.listen_for_events()
 
-                time.sleep(2)
-        else:
-            print("Connection Failed, invalid token?")
     finally:
         mh.cleanup()
         cfgparser.set('General', 'response rate', str(response_rate))
