@@ -1,2 +1,2 @@
 megahal==9.0.3
-slackclient==0.15
+matrix-client==0.0.1
