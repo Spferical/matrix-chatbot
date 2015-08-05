@@ -89,8 +89,9 @@ def main():
     if not success:
         cfgparser = get_default_config()
         write_config(cfgparser)
-        print("Please set your bot's username, password, and homeserver"
-              " in config.cfg, then run this again.")
+        print("A config has been generated. "
+              "Please set your bot's username, password, and homeserver "
+              "in config.cfg, then run this again.")
         return
     response_rate = cfgparser.getfloat('General', 'response rate')
     username = cfgparser.get('Login', 'username')
