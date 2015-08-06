@@ -1,6 +1,6 @@
-# slack-megahal
+# matrix-megahal
 
-Slack-megahal connects to a Matrix (Matrix.org) server and responds to messages at a configurable rate by connecting to megabot through its python bindings.
+Matrix-megahal connects to a Matrix (Matrix.org) server and responds to messages at a configurable rate by connecting to megabot through its python bindings.
 
 It automatically joins any rooms it is invited to and replies to any messages containing its username.
 
