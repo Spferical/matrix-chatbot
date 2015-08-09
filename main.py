@@ -2,6 +2,7 @@ from __future__ import print_function
 import time
 import mh_python as mh
 from matrix_client.client import MatrixClient
+from matrix_client.api import MatrixRequestError
 import argparse
 import random
 from ConfigParser import ConfigParser
@@ -112,7 +113,12 @@ def main():
         client.add_listener(global_callback)
 
         while True:
-            client.listen_for_events()
+            try:
+                client.listen_for_events()
+            except MatrixRequestError:
+                # wait a minute and see if the problem resolves itself
+                time.sleep(60)
+
 
     finally:
         mh.cleanup()
