@@ -1,6 +1,5 @@
 from __future__ import print_function
 import time
-import mh_python as mh
 from matrix_client.client import MatrixClient
 import argparse
 import random
@@ -8,6 +7,41 @@ from ConfigParser import ConfigParser
 import re
 import json
 import datetime
+import tempfile
+
+
+BRAIN_FILE = 'brain.txt'
+
+
+def load_brain():
+    # BRAIN_FILE file is a plaintext file.
+    # each line begins with two words, to form the prefix.
+    # After that, the line can have any number of pairs of 1 word and 1
+    # positive integer following the prefix. These are the words that may
+    # follow the prefix and their weight.
+    # e.g. "the fox jumped 2 ran 3 ate 1 ..."
+    brain = {}
+    with open('BRAIN_FILE', 'r') as brainfile:
+        for line in brainfile:
+            words = line.split(' ')
+            followers = {}
+            for i in range(2, len(words), 2):
+                followers[words[i]] = words[i + 1]
+            brain[(words[0], words[1])] = followers
+    return brain
+
+
+def save_brain(brain):
+    with tempfile.NamedTemporaryFile(
+            'w', delete=False) as tf:
+        for pair in brain:
+            followers = brain[pair]
+            line = "{} {}".format(pair[0], pair[1])
+            line = ' '.join(line, "{} {}".format(word, followers[word]) for
+                    word in followers)
+            tf.write(line + '\n')
+        name = tf.name
+    os.rename(name, BRAIN_FILE)
 
 
 def get_default_config():
