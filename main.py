@@ -276,7 +276,7 @@ def main():
                     time.sleep(60)
 
         finally:
-            save_brain(brain)
+            backend.clean_up()
             cfgparser.set('General', 'response rate', str(response_rate))
             print('Saving config...')
             write_config(cfgparser)
