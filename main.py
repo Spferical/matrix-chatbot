@@ -57,6 +57,14 @@ def save_brain(brain):
     os.rename(name, BRAIN_FILE)
 
 
+def generate_message(brain):
+    words = []
+    words.extend(random.choice(brain))
+    while (words[-2], words[-1]) in brain and len(words) < 100:
+        words.append(random.choice(brain[(words[-2], words[-1])]))
+    return ' '.join(words).capitalize() + '.'
+
+
 def get_default_config():
     config = ConfigParser()
     config.add_section('General')
@@ -124,10 +132,9 @@ def global_callback(event):
                         % response_rate)
                 elif username in message or \
                         random.random() < response_rate:
-                    response = mh.doreply(message)
+                    response = generate_message(brain)
                     reply(client, event, response)
-                else:
-                    mh.learn(message)
+                train(brain, message)
 
 def main():
     global response_rate, username, client, brain
