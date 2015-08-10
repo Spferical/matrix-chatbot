@@ -13,6 +13,19 @@ import tempfile
 BRAIN_FILE = 'brain.txt'
 
 
+def train(brain, line):
+    for i in range(len(line) - 2):
+        prefix = line[i], line[i + 1]
+        follow = line[i + 2]
+        if prefix in brain:
+            if follow in brain[prefix]:
+                brain[prefix][follow] += 1
+            else:
+                brain[prefix][follow] = 1
+        else:
+            brain[prefix] = {follow: 1}
+
+
 def load_brain():
     # BRAIN_FILE file is a plaintext file.
     # each line begins with two words, to form the prefix.
@@ -73,7 +86,7 @@ def get_name(sc):
 
 
 def global_callback(event):
-    global response_rate, username, client
+    global response_rate, username, client, brain
     # join rooms if invited
     if event['type'] == 'm.room.member':
         if 'content' in event and 'membership' in event['content']:
@@ -117,7 +130,7 @@ def global_callback(event):
                     mh.learn(message)
 
 def main():
-    global response_rate, username, client
+    global response_rate, username, client, brain
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
@@ -136,23 +149,39 @@ def main():
     argparser.add_argument("--debug",
                            help="Output raw events to help debug",
                            action="store_true")
+    argparser.add_argument("--train", metavar="TRAIN.TXT", type=str,
+                           help="Train the bot with a file of text.")
     args = vars(argparser.parse_args())
     debug = args['debug']
-    mh.initbrain()
+    train = args['train']
 
     try:
-        client = MatrixClient(server)
-        token = client.login_with_password(username, password)
-        client.add_listener(global_callback)
+        brain = load_brain()
+    except FileNotFoundError:
+        brain = {}
 
-        while True:
-            client.listen_for_events()
+    if train:
+        print("Training...")
+        with open(train) as train_file:
+            for line in train_file:
+                train(brain, line)
+        print("Training complete!")
+        save_brain(brain)
 
-    finally:
-        mh.cleanup()
-        cfgparser.set('General', 'response rate', str(response_rate))
-        print('Saving config...')
-        write_config(cfgparser)
+    else:
+        try:
+            client = MatrixClient(server)
+            token = client.login_with_password(username, password)
+            client.add_listener(global_callback)
+
+            while True:
+                client.listen_for_events()
+
+        finally:
+            save_brain(brain)
+            cfgparser.set('General', 'response rate', str(response_rate))
+            print('Saving config...')
+            write_config(cfgparser)
 
 
 if __name__ == '__main__':
