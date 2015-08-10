@@ -50,8 +50,8 @@ def save_brain(brain):
         for pair in brain:
             followers = brain[pair]
             line = "{} {}".format(pair[0], pair[1])
-            line = ' '.join(line, "{} {}".format(word, followers[word]) for
-                    word in followers)
+            line = ' '.join(line, ("{} {}".format(word, followers[word]) for
+                    word in followers))
             tf.write(line + '\n')
         name = tf.name
     os.rename(name, BRAIN_FILE)
