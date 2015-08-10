@@ -12,79 +12,118 @@ import tempfile
 import shutil
 
 
-BRAIN_FILE = 'brain.txt'
-
-
-def train(brain, line):
-    line = line.strip()
-    words = line.split(' ')
-    for word in words:
-        word = word.replace('\n', '').replace('\r', '')
-    for i in range(len(words) - 2):
-        prefix = words[i], words[i + 1]
-        follow = words[i + 2]
-        if prefix in brain:
-            if follow in brain[prefix]:
-                brain[prefix][follow] += 1
-            else:
-                brain[prefix][follow] = 1
-        else:
-            brain[prefix] = {follow: 1}
-
-
-def load_brain():
-    # BRAIN_FILE file is a plaintext file.
-    # each line begins with two words, to form the prefix.
-    # After that, the line can have any number of pairs of 1 word and 1
-    # positive integer following the prefix. These are the words that may
-    # follow the prefix and their weight.
-    # e.g. "the fox jumped 2 ran 3 ate 1 ..."
-    brain = {}
-    print(BRAIN_FILE)
-    with open(BRAIN_FILE, 'r') as brainfile:
-        for line in brainfile:
-            words = line.rstrip().split(' ')
-            followers = {}
-            for i in range(2, len(words), 2):
-                followers[words[i]] = int(words[i + 1])
-            brain[(words[0], words[1])] = followers
-    return brain
-
-
-def save_brain(brain):
-    with tempfile.NamedTemporaryFile(
-            'w', delete=False) as tf:
-        for pair in brain:
-            followers = brain[pair]
-            line = "{} {} ".format(pair[0], pair[1])
-            line +=' '.join("{} {}".format(word, followers[word]) for
-                    word in followers)
-            tf.write(line + '\n')
-        name = tf.name
-    shutil.move(name, BRAIN_FILE)
-
-
-def generate_message(brain):
-    words = []
-    words.extend(random.choice(brain.keys()))
-    while (words[-2], words[-1]) in brain and len(words) < 100:
-        possibilities = brain[(words[-2], words[-1])]
-        total = 0
-        for p in possibilities:
-            total += possibilities[p]
-        num = random.randint(1, total)
-        total = 0
-        for p in possibilities:
-            total += possibilities[p]
-            if total >= num:
-                break
-        words.append(p)
-    return ' '.join(words).capitalize() + '.'
-
-
 COMMANDS = [
     '!rate'
 ]
+
+
+class Backend(object):
+
+    def train_file(self, filename):
+        with open('filename') as train_file:
+            for line in train_file:
+                self.learn(line)
+
+    def learn(self, line):
+        pass
+
+    def clean_up(self):
+        pass
+
+    def reply(self, message):
+        return "(dummy response)"
+
+
+class MarkovBackend(Backend):
+    brain_file = 'brain.txt'
+
+    def __init__(self):
+        try:
+            self.load_brain()
+        except IOError:
+            self.brain = {}
+
+    def load_brain(self):
+        # BRAIN_FILE file is a plaintext file.
+        # each line begins with two words, to form the prefix.
+        # After that, the line can have any number of pairs of 1 word and 1
+        # positive integer following the prefix. These are the words that may
+        # follow the prefix and their weight.
+        # e.g. "the fox jumped 2 ran 3 ate 1 ..."
+        self.brain = {}
+        with open(BRAIN_FILE, 'r') as brainfile:
+            for line in brainfile:
+                words = line.rstrip().split(' ')
+                followers = {}
+                for i in range(2, len(words), 2):
+                    followers[words[i]] = int(words[i + 1])
+                self.brain[(words[0], words[1])] = followers
+
+    def save_brain(self):
+        with tempfile.NamedTemporaryFile(
+                'w', delete=False) as tf:
+            for pair in self.brain:
+                followers = self.brain[pair]
+                line = "{} {} ".format(pair[0], pair[1])
+                line +=' '.join("{} {}".format(word, followers[word]) for
+                        word in followers)
+                tf.write(line + '\n')
+            name = tf.name
+        shutil.move(name, BRAIN_FILE)
+
+
+    def clean_up(self):
+        self.save_brain()
+
+    def learn(self, line):
+        line = line.strip()
+        words = line.split(' ')
+        for word in words:
+            word = word.replace('\n', '').replace('\r', '')
+        for i in range(len(words) - 2):
+            prefix = words[i], words[i + 1]
+            follow = words[i + 2]
+            if prefix in self.brain:
+                if follow in self.brain[prefix]:
+                    self.brain[prefix][follow] += 1
+                else:
+                    self.brain[prefix][follow] = 1
+            else:
+                self.brain[prefix] = {follow: 1}
+
+    def reply(self, message):
+        words = []
+        words.extend(random.choice(self.brain.keys()))
+        while (words[-2], words[-1]) in self.brain and len(words) < 100:
+            possibilities = self.brain[(words[-2], words[-1])]
+            total = 0
+            for p in possibilities:
+                total += possibilities[p]
+            num = random.randint(1, total)
+            total = 0
+            for p in possibilities:
+                total += possibilities[p]
+                if total >= num:
+                    break
+            words.append(p)
+        return ' '.join(words).capitalize() + '.'
+
+
+class MegaHALBackend(Backend):
+
+    def __init__(self):
+        # only loads megahal if backend is being used
+        import mh_python
+        self.mh = mh_python
+
+    def learn(self, line):
+        self.mh.learn(line)
+
+    def clean_up(self):
+        self.mh.cleanup()
+
+    def reply(self, message):
+        return self.mh.doreply(message)
 
 
 def get_room(client, event):
@@ -124,9 +163,11 @@ def handle_command(client, event, command, args):
 
 
 def get_default_config():
-    config = ConfigParser()
+    config = ConfigParser(allow_no_value=True)
     config.add_section('General')
     config.set('General', 'response rate', "0.10")
+    config.set('General', '# Valid backends are "markov" and "megahal"')
+    config.set('General', 'backend', 'markov')
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
@@ -152,7 +193,7 @@ def get_name(sc):
 
 
 def global_callback(event):
-    global response_rate, username, client, brain
+    global response_rate, username, client, backend
     # join rooms if invited
     if event['type'] == 'm.room.member':
         if 'content' in event and 'membership' in event['content']:
@@ -180,12 +221,12 @@ def global_callback(event):
             if not command_found:
                 if username in message or \
                         random.random() < response_rate:
-                    response = generate_message(brain)
+                    response = backend.reply(message)
                     reply(client, event, response)
-                train(brain, message)
+                backend.learn(message)
 
 def main():
-    global response_rate, username, client, brain
+    global response_rate, username, client
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
@@ -196,6 +237,7 @@ def main():
               "in config.cfg, then run this again.")
         return
     response_rate = cfgparser.getfloat('General', 'response rate')
+    backend = cfgparser.get('General', 'backend')
     username = cfgparser.get('Login', 'username')
     password = cfgparser.get('Login', 'password')
     server = cfgparser.get('Login', 'server')
@@ -210,18 +252,15 @@ def main():
     debug = args['debug']
     train_file = args['train']
 
-    try:
-        brain = load_brain()
-    except IOError:
-        brain = {}
+    backends = {'markov': MarkovBackend,
+                'megahal': MegaHALBackend}
+    backend = backends[backend]
 
     if train_file:
         print("Training...")
-        with open(train_file) as train_file:
-            for line in train_file:
-                train(brain, line)
+        backend.train_file(train_file)
         print("Training complete!")
-        save_brain(brain)
+        backend.clean_up()
 
     else:
         try:
