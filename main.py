@@ -106,7 +106,7 @@ class MarkovBackend(Backend):
                 if total >= num:
                     break
             words.append(p)
-        return ' '.join(words).capitalize() + '.'
+        return ' '.join(words).capitalize()
 
 
 class MegaHALBackend(Backend):
