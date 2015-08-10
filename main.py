@@ -243,7 +243,7 @@ def main():
     password = cfgparser.get('Login', 'password')
     server = cfgparser.get('Login', 'server')
     argparser = argparse.ArgumentParser(
-        description="Slack chatbot using MegaHAL")
+        description="A chatbot for Matrix (matrix.org)")
     argparser.add_argument("--debug",
                            help="Output raw events to help debug",
                            action="store_true")
