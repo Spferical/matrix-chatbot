@@ -1,6 +1,7 @@
 from __future__ import print_function
 import time
 from matrix_client.client import MatrixClient
+from matrix_client.api import MatrixRequestError
 import argparse
 import random
 from ConfigParser import ConfigParser
@@ -81,6 +82,47 @@ def generate_message(brain):
     return ' '.join(words).capitalize() + '.'
 
 
+COMMANDS = [
+    '!rate'
+]
+
+
+def get_room(client, event):
+    return client.rooms[event['room_id']]
+
+
+def handle_command(client, event, command, args):
+    global response_rate
+    if command == '!rate':
+        if args:
+            if len(args) > 1:
+                reply(client, event,
+                      "Too many arguments. Command is "
+                      "!rate [response rate].")
+                return
+
+            try:
+                num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
+                if not num:
+                    reply(client, event,
+                          "Error: Could not parse number.")
+                    return
+                if num[-1] == '%':
+                    rate = float(num[:-1]) / 100
+                else:
+                    rate = float(num)
+                response_rate = rate
+                reply(client, event,
+                      "Response rate set to %f." % response_rate)
+            except ValueError:
+                reply(client, event,
+                      "Error: Could not parse number.")
+        else:
+            reply(client, event,
+                  "Response rate set to %f." % response_rate)
+
+
+
 def get_default_config():
     config = ConfigParser()
     config.add_section('General')
@@ -98,7 +140,7 @@ def write_config(config):
 
 
 def reply(client, event, message):
-    room = client.rooms[event['room_id']]
+    room = get_room(client, event)
     print("Reply: %s" % message)
     room.send_text(message)
 
@@ -127,26 +169,16 @@ def global_callback(event):
             # case-insensitively
             message = message.lower()
             print("Handling message: %s" % message)
-            match = re.search(
-                "%s, set response rate to [0-9]{2}(%%|)" % username,
-                message)
-            if match:
-                words = match.group().split()
-                num = words[-1]
-                if num[-1] == '%':
-                    rate = float(num[:-1]) / 100
-                else:
-                    rate = float(num)
-                response_rate = rate
-                reply(client, event, "Response rate set to %f" % rate)
-            else:
-                match = re.search(
-                    "%s, what is your response rate?" % username, message)
+            command_found = False
+            for command in COMMANDS:
+                match = re.search(command, message)
                 if match:
-                    reply(client, event,
-                        "My response rate is set at %f."
-                        % response_rate)
-                elif username in message or \
+                    command_found = True
+                    args = message.split(' ')
+                    handle_command(client, event, args[0], args[1:])
+                    break
+            if not command_found:
+                if username in message or \
                         random.random() < response_rate:
                     response = generate_message(brain)
                     reply(client, event, response)
@@ -198,7 +230,11 @@ def main():
             client.add_listener(global_callback)
 
             while True:
-                client.listen_for_events()
+                try:
+                    client.listen_for_events()
+                except MatrixRequestError:
+                    # wait a minute and see if the problem resolves itself
+                    time.sleep(60)
 
         finally:
             save_brain(brain)
