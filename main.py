@@ -8,15 +8,20 @@ import re
 import json
 import datetime
 import tempfile
+import shutil
 
 
 BRAIN_FILE = 'brain.txt'
 
 
 def train(brain, line):
-    for i in range(len(line) - 2):
-        prefix = line[i], line[i + 1]
-        follow = line[i + 2]
+    line = line.strip()
+    words = line.split(' ')
+    for word in words:
+        word = word.replace('\n', '').replace('\r', '')
+    for i in range(len(words) - 2):
+        prefix = words[i], words[i + 1]
+        follow = words[i + 2]
         if prefix in brain:
             if follow in brain[prefix]:
                 brain[prefix][follow] += 1
@@ -34,12 +39,13 @@ def load_brain():
     # follow the prefix and their weight.
     # e.g. "the fox jumped 2 ran 3 ate 1 ..."
     brain = {}
-    with open('BRAIN_FILE', 'r') as brainfile:
+    print(BRAIN_FILE)
+    with open(BRAIN_FILE, 'r') as brainfile:
         for line in brainfile:
-            words = line.split(' ')
+            words = line.rstrip().split(' ')
             followers = {}
             for i in range(2, len(words), 2):
-                followers[words[i]] = words[i + 1]
+                followers[words[i]] = int(words[i + 1])
             brain[(words[0], words[1])] = followers
     return brain
 
@@ -49,19 +55,29 @@ def save_brain(brain):
             'w', delete=False) as tf:
         for pair in brain:
             followers = brain[pair]
-            line = "{} {}".format(pair[0], pair[1])
-            line = ' '.join(line, ("{} {}".format(word, followers[word]) for
-                    word in followers))
+            line = "{} {} ".format(pair[0], pair[1])
+            line +=' '.join("{} {}".format(word, followers[word]) for
+                    word in followers)
             tf.write(line + '\n')
         name = tf.name
-    os.rename(name, BRAIN_FILE)
+    shutil.move(name, BRAIN_FILE)
 
 
 def generate_message(brain):
     words = []
-    words.extend(random.choice(brain))
+    words.extend(random.choice(brain.keys()))
     while (words[-2], words[-1]) in brain and len(words) < 100:
-        words.append(random.choice(brain[(words[-2], words[-1])]))
+        possibilities = brain[(words[-2], words[-1])]
+        total = 0
+        for p in possibilities:
+            total += possibilities[p]
+        num = random.randint(1, total)
+        total = 0
+        for p in possibilities:
+            total += possibilities[p]
+            if total >= num:
+                break
+        words.append(p)
     return ' '.join(words).capitalize() + '.'
 
 
@@ -160,16 +176,16 @@ def main():
                            help="Train the bot with a file of text.")
     args = vars(argparser.parse_args())
     debug = args['debug']
-    train = args['train']
+    train_file = args['train']
 
     try:
         brain = load_brain()
-    except FileNotFoundError:
+    except IOError:
         brain = {}
 
-    if train:
+    if train_file:
         print("Training...")
-        with open(train) as train_file:
+        with open(train_file) as train_file:
             for line in train_file:
                 train(brain, line)
         print("Training complete!")
