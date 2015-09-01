@@ -132,7 +132,7 @@ def get_room(client, event):
 
 
 def handle_command(client, event, command, args):
-    global response_rate
+    global response_rates, default_response_rate
     if command == '!rate':
         if args:
             if len(args) > 1:
@@ -151,28 +151,32 @@ def handle_command(client, event, command, args):
                     rate = float(num[:-1]) / 100
                 else:
                     rate = float(num)
-                response_rate = rate
+                room = get_room(client, event)
+                response_rates[room.room_id] = rate
                 reply(client, event,
-                      "Response rate set to %f." % response_rate)
+                      "Response rate set to %f." % rate)
             except ValueError:
                 reply(client, event,
                       "Error: Could not parse number.")
         else:
+            room = get_room(client, event)
+            rate = get_response_rate(room)
             reply(client, event,
-                  "Response rate set to %f." % response_rate)
+                  "Response rate set to %f in this room." % rate)
 
 
 
 def get_default_config():
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
-    config.set('General', 'response rate', "0.10")
+    config.set('General', 'default response rate', "0.10")
     config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
     config.set('Login', 'server', 'http://matrix.org')
+    config.add_section('Response Rates')
     return config
 
 
@@ -193,8 +197,16 @@ def get_name(sc):
     return data['user']
 
 
+def get_response_rate(room):
+    global default_response_rate, response_rates
+    if room.room_id in response_rates:
+        return response_rates[room.room_id]
+    else:
+        return default_response_rate
+
+
 def global_callback(event):
-    global response_rate, username, client, backend
+    global response_rates, default_response_rate, username, client, backend
     # join rooms if invited
     if event['type'] == 'm.room.member':
         if 'content' in event and 'membership' in event['content']:
@@ -220,15 +232,16 @@ def global_callback(event):
                     handle_command(client, event, args[0], args[1:])
                     break
             if not command_found:
+                room = get_room(client, event)
                 if username in message or \
-                        random.random() < response_rate:
+                        random.random() < get_response_rate(room):
                     response = backend.reply(message)
                     time.sleep(5)
                     reply(client, event, response)
                 backend.learn(message)
 
 def main():
-    global response_rate, username, client, backend
+    global default_response_rate, response_rates, username, client, backend
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
@@ -238,7 +251,11 @@ def main():
               "Please set your bot's username, password, and homeserver "
               "in config.cfg, then run this again.")
         return
-    response_rate = cfgparser.getfloat('General', 'response rate')
+    default_response_rate = cfgparser.getfloat(
+        'General', 'default response rate')
+    response_rates = {}
+    for room_id, rate in cfgparser.items('Response Rates'):
+        response_rates[room_id] = rate
     backend = cfgparser.get('General', 'backend')
     username = cfgparser.get('Login', 'username')
     password = cfgparser.get('Login', 'password')
@@ -279,7 +296,8 @@ def main():
 
         finally:
             backend.clean_up()
-            cfgparser.set('General', 'response rate', str(response_rate))
+            for room_id, rate in response_rates.items():
+                cfgparser.set('Response Rates', room_id, str(rate))
             print('Saving config...')
             write_config(cfgparser)
 
