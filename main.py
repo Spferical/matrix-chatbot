@@ -118,13 +118,13 @@ class MegaHALBackend(Backend):
         self.mh.initbrain()
 
     def learn(self, line):
-        self.mh.learn(line)
+        self.mh.learn(line.encode('utf8'))
 
     def clean_up(self):
         self.mh.cleanup()
 
     def reply(self, message):
-        return self.mh.doreply(message)
+        return self.mh.doreply(message.encode('utf8'))
 
 
 def get_room(client, event):
