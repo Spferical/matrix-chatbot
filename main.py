@@ -238,7 +238,7 @@ def global_callback(event):
                 if username in message or \
                         random.random() < get_response_rate(room):
                     response = backend.reply(message)
-                    time.sleep(5)
+                    time.sleep(3)
                     reply(client, event, response)
                 backend.learn(message)
 
