@@ -10,6 +10,7 @@ import json
 import datetime
 import tempfile
 import shutil
+import codecs
 
 
 COMMANDS = [
@@ -51,7 +52,8 @@ class MarkovBackend(Backend):
         # follow the prefix and their weight.
         # e.g. "the fox jumped 2 ran 3 ate 1 ..."
         self.brain = {}
-        with open(self.brain_file, 'r') as brainfile:
+        with codecs.open(
+                self.brain_file, encoding='utf8', mode='r') as brainfile:
             for line in brainfile:
                 words = line.rstrip().split(' ')
                 followers = {}
@@ -64,10 +66,10 @@ class MarkovBackend(Backend):
                 'w', delete=False) as tf:
             for pair in self.brain:
                 followers = self.brain[pair]
-                line = "{} {} ".format(pair[0], pair[1])
-                line +=' '.join("{} {}".format(word, followers[word]) for
+                line = u"{} {} ".format(pair[0], pair[1])
+                line +=u' '.join(u"{} {}".format(word, followers[word]) for
                         word in followers)
-                tf.write(line + '\n')
+                tf.write((line + u'\n').encode('utf8'))
             name = tf.name
         shutil.move(name, self.brain_file)
 
@@ -218,7 +220,7 @@ def global_callback(event):
         # only care about text messages by other people
         if event['user_id'] != client.user_id and \
                 event['content']['msgtype'] == 'm.text':
-            message = event['content']['body']
+            message = unicode(event['content']['body'])
             # lowercase message so we can search it
             # case-insensitively
             message = message.lower()
