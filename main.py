@@ -25,6 +25,9 @@ class Backend(object):
             for line in train_file:
                 self.learn(line)
 
+    def load_brain(self):
+        pass
+
     def learn(self, line):
         pass
 
@@ -39,10 +42,7 @@ class MarkovBackend(Backend):
     brain_file = 'brain.txt'
 
     def __init__(self):
-        try:
-            self.load_brain()
-        except IOError:
-            self.brain = {}
+        self.brain = {}
 
     def load_brain(self):
         # self.brain_file is a plaintext file.
@@ -51,26 +51,35 @@ class MarkovBackend(Backend):
         # positive integer following the prefix. These are the words that may
         # follow the prefix and their weight.
         # e.g. "the fox jumped 2 ran 3 ate 1 ..."
-        self.brain = {}
-        with codecs.open(
-                self.brain_file, encoding='utf8', mode='r') as brainfile:
-            for line in brainfile:
-                words = line.rstrip().split(' ')
-                followers = {}
-                for i in range(2, len(words), 2):
-                    followers[words[i]] = int(words[i + 1])
-                self.brain[(words[0], words[1])] = followers
+        try:
+            with codecs.open(
+                    self.brain_file, encoding='utf8', mode='r') as brainfile:
+                for line in brainfile:
+                    self.load_brain_line(line)
+        except IOError:
+            self.brain = {}
+
+    def load_brain_line(self, line):
+            words = line.rstrip().split(' ')
+            followers = {}
+            for i in range(2, len(words), 2):
+                followers[words[i]] = int(words[i + 1])
+            self.brain[(words[0], words[1])] = followers
+
+    def get_save_brain_lines(self):
+        for pair in self.brain:
+            followers = self.brain[pair]
+            line = u"{} {} ".format(pair[0], pair[1])
+            line +=u' '.join(u"{} {}".format(word, followers[word]) for
+                    word in followers)
+            yield (line + u'\n').encode('utf8')
 
     def save_brain(self):
         with tempfile.NamedTemporaryFile(
                 'w', delete=False) as tf:
-            for pair in self.brain:
-                followers = self.brain[pair]
-                line = u"{} {} ".format(pair[0], pair[1])
-                line +=u' '.join(u"{} {}".format(word, followers[word]) for
-                        word in followers)
-                tf.write((line + u'\n').encode('utf8'))
             name = tf.name
+            for line in self.get_save_brain_lines():
+                tf.write(line)
         shutil.move(name, self.brain_file)
 
 
@@ -119,6 +128,8 @@ class MegaHALBackend(Backend):
         # only loads megahal if backend is being used
         import mh_python
         self.mh = mh_python
+
+    def load_brain(self):
         self.mh.initbrain()
 
     def learn(self, line):
@@ -278,6 +289,7 @@ def main():
     backends = {'markov': MarkovBackend,
                 'megahal': MegaHALBackend}
     backend = backends[backend]()
+    backend.load_brain()
 
     if train_file:
         print("Training...")
