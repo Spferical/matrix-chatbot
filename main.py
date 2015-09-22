@@ -77,11 +77,13 @@ class MarkovBackend(Backend):
     def clean_up(self):
         self.save_brain()
 
+    def sanitize(self, word):
+        return word.replace('\n', '').replace('\r', '')
+
     def learn(self, line):
         line = line.strip()
         words = line.split(' ')
-        for word in words:
-            word = word.replace('\n', '').replace('\r', '')
+        words = [self.sanitize(word) for word in words]
         for i in range(len(words) - 2):
             prefix = words[i], words[i + 1]
             follow = words[i + 2]
