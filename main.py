@@ -190,7 +190,7 @@ def write_config(config):
 def reply(client, event, message):
     room = get_room(client, event)
     print("Reply: %s" % message)
-    room.send_text(message)
+    room.send_text(message.encode('utf8'))
 
 
 def get_name(sc):
