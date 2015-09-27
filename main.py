@@ -270,6 +270,7 @@ def main():
         'General', 'default response rate')
     response_rates = {}
     for room_id, rate in cfgparser.items('Response Rates'):
+        room_id = room_id.replace('-colon-', ':')
         response_rates[room_id] = rate
     backend = cfgparser.get('General', 'backend')
     username = cfgparser.get('Login', 'username')
@@ -313,6 +314,9 @@ def main():
         finally:
             backend.clean_up()
             for room_id, rate in response_rates.items():
+                # censor colons because they are a configparser special
+                # character
+                room_id = room_id.replace(':', '-colon-')
                 cfgparser.set('Response Rates', room_id, str(rate))
             print('Saving config...')
             write_config(cfgparser)
