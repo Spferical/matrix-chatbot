@@ -2,6 +2,7 @@ from __future__ import print_function
 import time
 from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixRequestError
+from requests.exceptions import ConnectTimeout
 import argparse
 import random
 from ConfigParser import ConfigParser
@@ -307,7 +308,7 @@ def main():
             while True:
                 try:
                     client.listen_for_events()
-                except MatrixRequestError:
+                except (MatrixRequestError, ConnectTimeout):
                     # wait a minute and see if the problem resolves itself
                     time.sleep(60)
 
