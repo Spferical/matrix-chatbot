@@ -309,7 +309,8 @@ def main():
                 try:
                     client.listen_for_events()
                 except (MatrixRequestError, ConnectTimeout, ConnectionError):
-                    # wait a minute and see if the problem resolves itself
+                    print("Warning: disconnected. Waiting a minute to see if"
+                          " the problem resolves itself...")
                     time.sleep(60)
 
         finally:
