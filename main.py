@@ -143,12 +143,45 @@ class MegaHALBackend(Backend):
         return self.mh.doreply(message.encode('utf8'))
 
 
+class Config(object):
+    def __init__(self, cfgparser):
+        self.backend = cfgparser.get('General', 'backend')
+        self.username = cfgparser.get('Login', 'username')
+        self.password = cfgparser.get('Login', 'password')
+        self.server = cfgparser.get('Login', 'server')
+        self.default_response_rate = cfgparser.getfloat(
+            'General', 'default response rate')
+        self.response_rates = {}
+        for room_id, rate in cfgparser.items('Response Rates'):
+            room_id = room_id.replace('-colon-', ':')
+            self.response_rates[room_id] = float(rate)
+
+    def write(self):
+        cfgparser = ConfigParser()
+        cfgparser.add_section('General')
+        cfgparser.set('General', 'default response rate',
+                      str(self.default_response_rate))
+        cfgparser.set('General', '# Valid backends are "markov" and "megahal"')
+        cfgparser.set('General', 'backend', self.backend)
+        cfgparser.add_section('Login')
+        cfgparser.set('Login', 'username', self.username)
+        cfgparser.set('Login', 'password', self.password)
+        cfgparser.set('Login', 'server', self.server)
+        cfgparser.add_section('Response Rates')
+        for room_id, rate in self.response_rates.items():
+            # censor colons because they are a configparser special
+            # character
+            room_id = room_id.replace(':', '-colon-')
+            cfgparser.set('Response Rates', room_id, str(rate))
+        with open('config.cfg', 'wt') as configfile:
+            cfgparser.write(configfile)
+
+
 def get_room(client, event):
     return client.rooms[event['room_id']]
 
 
-def handle_command(client, event, command, args):
-    global response_rates, default_response_rate
+def handle_command(config, client, event, command, args):
     if command == '!rate':
         if args:
             if len(args) > 1:
@@ -168,7 +201,7 @@ def handle_command(client, event, command, args):
                 else:
                     rate = float(num)
                 room = get_room(client, event)
-                response_rates[room.room_id] = rate
+                config.response_rates[room.room_id] = rate
                 reply(client, event,
                       "Response rate set to %f." % rate)
             except ValueError:
@@ -176,13 +209,13 @@ def handle_command(client, event, command, args):
                       "Error: Could not parse number.")
         else:
             room = get_room(client, event)
-            rate = get_response_rate(room)
+            rate = get_response_rate(config, room)
             reply(client, event,
                   "Response rate set to %f in this room." % rate)
 
 
 
-def get_default_config():
+def get_default_configparser():
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
     config.set('General', 'default response rate', "0.10")
@@ -194,11 +227,6 @@ def get_default_config():
     config.set('Login', 'server', 'http://matrix.org')
     config.add_section('Response Rates')
     return config
-
-
-def write_config(config):
-    with open('config.cfg', 'wt') as configfile:
-        config.write(configfile)
 
 
 def reply(client, event, message):
@@ -213,16 +241,14 @@ def get_name(sc):
     return data['user']
 
 
-def get_response_rate(room):
-    global default_response_rate, response_rates
-    if room.room_id in response_rates:
-        return response_rates[room.room_id]
+def get_response_rate(config, room):
+    if room.room_id in config.response_rates:
+        return config.response_rates[room.room_id]
     else:
-        return default_response_rate
+        return config.default_response_rate
 
 
-def global_callback(event):
-    global response_rates, default_response_rate, username, client, backend
+def handle_event(event, client, backend, config):
     # join rooms if invited
     if event['type'] == 'm.room.member':
         if 'content' in event and 'membership' in event['content']:
@@ -245,19 +271,40 @@ def global_callback(event):
                 if match:
                     command_found = True
                     args = message.split(' ')
-                    handle_command(client, event, args[0], args[1:])
+                    handle_command(config, client, event, args[0], args[1:])
                     break
             if not command_found:
                 room = get_room(client, event)
-                if username in message or \
-                        random.random() < get_response_rate(room):
+                if config.username in message or \
+                        random.random() < get_response_rate(config, room):
                     response = backend.reply(message)
                     time.sleep(3)
                     reply(client, event, response)
                 backend.learn(message)
 
+
+def train(backend, train_file):
+    print("Training...")
+    backend.train_file(train_file)
+    print("Training complete!")
+    backend.clean_up()
+
+
+def run(config, backend):
+    client = MatrixClient(config.server)
+    token = client.login_with_password(config.username, config.password)
+
+    def callback(event):
+        handle_event(event, client, backend, config)
+
+    client.add_listener(callback)
+
+    while True:
+        client.listen_for_events()
+
+
 def main():
-    global default_response_rate, response_rates, username, client, backend
+    global debug
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
@@ -267,16 +314,9 @@ def main():
               "Please set your bot's username, password, and homeserver "
               "in config.cfg, then run this again.")
         return
-    default_response_rate = cfgparser.getfloat(
-        'General', 'default response rate')
-    response_rates = {}
-    for room_id, rate in cfgparser.items('Response Rates'):
-        room_id = room_id.replace('-colon-', ':')
-        response_rates[room_id] = rate
-    backend = cfgparser.get('General', 'backend')
-    username = cfgparser.get('Login', 'username')
-    password = cfgparser.get('Login', 'password')
-    server = cfgparser.get('Login', 'server')
+
+    config = Config(cfgparser)
+
     argparser = argparse.ArgumentParser(
         description="A chatbot for Matrix (matrix.org)")
     argparser.add_argument("--debug",
@@ -290,38 +330,23 @@ def main():
 
     backends = {'markov': MarkovBackend,
                 'megahal': MegaHALBackend}
-    backend = backends[backend]()
+    backend = backends[config.backend]()
     backend.load_brain()
 
     if train_file:
-        print("Training...")
-        backend.train_file(train_file)
-        print("Training complete!")
-        backend.clean_up()
-
+        train(backend, train_file)
     else:
-        try:
-            client = MatrixClient(server)
-            token = client.login_with_password(username, password)
-            client.add_listener(global_callback)
-
-            while True:
-                try:
-                    client.listen_for_events()
-                except (MatrixRequestError, ConnectionError):
-                    print("Warning: disconnected. Waiting a minute to see if"
-                          " the problem resolves itself...")
-                    time.sleep(60)
-
-        finally:
-            backend.clean_up()
-            for room_id, rate in response_rates.items():
-                # censor colons because they are a configparser special
-                # character
-                room_id = room_id.replace(':', '-colon-')
-                cfgparser.set('Response Rates', room_id, str(rate))
-            print('Saving config...')
-            write_config(cfgparser)
+        while True:
+            try:
+                run(config, backend)
+            except (MatrixRequestError, ConnectionError):
+                print("Warning: disconnected. Waiting a minute to see if"
+                        " the problem resolves itself...")
+                time.sleep(60)
+            finally:
+                backend.clean_up()
+                print('Saving config...')
+                config.write()
 
 
 if __name__ == '__main__':
