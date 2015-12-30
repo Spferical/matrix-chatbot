@@ -19,6 +19,12 @@ COMMANDS = [
 ]
 
 
+class ConfigParser(ConfigParser):
+    # allow case-sensitive option names
+    # needed for saving per-room response rates
+    optionxform = str
+
+
 class Backend(object):
 
     def train_file(self, filename):
