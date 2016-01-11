@@ -152,6 +152,7 @@ class MegaHALBackend(Backend):
 class Config(object):
     def __init__(self, cfgparser):
         self.backend = cfgparser.get('General', 'backend')
+        self.display_name = cfgparser.get('General', 'display name')
         self.username = cfgparser.get('Login', 'username')
         self.password = cfgparser.get('Login', 'password')
         self.server = cfgparser.get('Login', 'server')
@@ -169,6 +170,7 @@ class Config(object):
                       str(self.default_response_rate))
         cfgparser.set('General', '# Valid backends are "markov" and "megahal"')
         cfgparser.set('General', 'backend', self.backend)
+        cfgparser.set('General', 'display name', self.display_name)
         cfgparser.add_section('Login')
         cfgparser.set('Login', 'username', self.username)
         cfgparser.set('Login', 'password', self.password)
@@ -227,6 +229,7 @@ def get_default_configparser():
     config.set('General', 'default response rate', "0.10")
     config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
+    config.set('General', 'display name', 'Markov')
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
@@ -282,6 +285,7 @@ def handle_event(event, client, backend, config):
             if not command_found:
                 room = get_room(client, event)
                 if config.username in message or \
+                        config.display_name.lower() in message or \
                         random.random() < get_response_rate(config, room):
                     response = backend.reply(message)
                     time.sleep(3)
@@ -304,6 +308,8 @@ def run(config, backend):
         handle_event(event, client, backend, config)
 
     client.add_listener(callback)
+
+    client.api.set_display_name(client.user_id, config.display_name)
 
     while True:
         client.listen_for_events()
