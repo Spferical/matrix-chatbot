@@ -309,7 +309,9 @@ def run(config, backend):
 
     client.add_listener(callback)
 
-    client.api.set_display_name(client.user_id, config.display_name)
+    current_display_name = client.api.get_display_name(client.user_id)
+    if current_display_name != config.display_name:
+        client.api.set_display_name(client.user_id, config.display_name)
 
     while True:
         client.listen_for_events()
