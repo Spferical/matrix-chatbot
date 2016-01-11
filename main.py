@@ -314,8 +314,9 @@ def main():
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
-        cfgparser = get_default_config()
-        write_config(cfgparser)
+        cfgparser = get_default_configparser()
+        with open('config.cfg', 'wt') as configfile:
+            cfgparser.write(configfile)
         print("A config has been generated. "
               "Please set your bot's username, password, and homeserver "
               "in config.cfg, then run this again.")
