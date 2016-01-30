@@ -146,7 +146,8 @@ class MegaHALBackend(Backend):
         self.mh.cleanup()
 
     def reply(self, message):
-        return unicode(self.mh.doreply(message.encode('utf8')))
+        return unicode(
+            self.mh.doreply(message.encode('utf8')), 'utf8', 'replace')
 
 
 class Config(object):
