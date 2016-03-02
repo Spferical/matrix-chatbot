@@ -8,20 +8,20 @@ class TestMatrixChatbot(unittest.TestCase):
     def test_markov_backend(self):
         mb = main.MarkovBackend()
 
-        mb.load_brain_line(u'I have a 1 the 2 smores 3 potatoes 1')
+        mb.load_brain_line('I have a 1 the 2 smores 3 potatoes 1')
         self.assertEqual(
-            mb.brain[(u'I', u'have')],
-            {u'a': 1, u'the': 2, u'smores': 3, u'potatoes': 1})
+            mb.brain[('I', 'have')],
+            {'a': 1, 'the': 2, 'smores': 3, 'potatoes': 1})
 
-        mb.load_brain_line(u'What the what 1')
+        mb.load_brain_line('What the what 1')
         self.assertEqual(
-            mb.brain[(u'What', u'the')],
-            {u'what': 1})
+            mb.brain[('What', 'the')],
+            {'what': 1})
 
-        mb.learn(u'Test that first and second are \n\nap\n\npro\nximately\n\r\n')
+        mb.learn('Test that first and second are \n\nap\n\npro\nximately\n\r\n')
         self.assertEqual(
-            mb.brain[(u'second', u'are')],
-            {u'approximately': 1})
+            mb.brain[('second', 'are')],
+            {'approximately': 1})
 
         lines = mb.get_save_brain_lines()
         mb2 = main.MarkovBackend()

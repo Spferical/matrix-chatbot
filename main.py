@@ -1,11 +1,11 @@
-from __future__ import print_function
+
 import time
 from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixRequestError
 from requests.exceptions import ConnectionError
 import argparse
 import random
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import re
 import json
 import datetime
@@ -76,10 +76,10 @@ class MarkovBackend(Backend):
     def get_save_brain_lines(self):
         for pair in self.brain:
             followers = self.brain[pair]
-            line = u"{} {} ".format(pair[0], pair[1])
-            line +=u' '.join(u"{} {}".format(word, followers[word]) for
+            line = "{} {} ".format(pair[0], pair[1])
+            line +=' '.join("{} {}".format(word, followers[word]) for
                     word in followers)
-            yield (line + u'\n').encode('utf8')
+            yield (line + '\n')
 
     def save_brain(self):
         with tempfile.NamedTemporaryFile(
@@ -113,7 +113,7 @@ class MarkovBackend(Backend):
 
     def reply(self, message):
         words = []
-        words.extend(random.choice(self.brain.keys()))
+        words.extend(random.choice(list(self.brain.keys())))
         while (words[-2], words[-1]) in self.brain and len(words) < 100:
             possibilities = self.brain[(words[-2], words[-1])]
             total = 0
@@ -146,7 +146,7 @@ class MegaHALBackend(Backend):
         self.mh.cleanup()
 
     def reply(self, message):
-        return unicode(
+        return str(
             self.mh.doreply(message.encode('utf8')), 'utf8', 'replace')
 
 
@@ -177,7 +177,7 @@ class Config(object):
         cfgparser.set('Login', 'password', self.password)
         cfgparser.set('Login', 'server', self.server)
         cfgparser.add_section('Response Rates')
-        for room_id, rate in self.response_rates.items():
+        for room_id, rate in list(self.response_rates.items()):
             # censor colons because they are a configparser special
             # character
             room_id = room_id.replace(':', '-colon-')
@@ -242,7 +242,7 @@ def get_default_configparser():
 def reply(client, event, message):
     room = get_room(client, event)
     print("Reply: %s" % message)
-    room.send_text(message.encode('utf8'))
+    room.send_text(message)
 
 
 def get_name(sc):
@@ -270,7 +270,7 @@ def handle_event(event, client, backend, config):
         # only care about text messages by other people
         if event['user_id'] != client.user_id and \
                 event['content']['msgtype'] == 'm.text':
-            message = unicode(event['content']['body'])
+            message = str(event['content']['body'])
             # lowercase message so we can search it
             # case-insensitively
             message = message.lower()
