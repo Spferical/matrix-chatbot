@@ -12,6 +12,7 @@ import datetime
 import tempfile
 import shutil
 import codecs
+import time
 
 
 COMMANDS = [
@@ -38,7 +39,7 @@ class Backend(object):
     def learn(self, line):
         pass
 
-    def clean_up(self):
+    def save(self):
         pass
 
     def reply(self, message):
@@ -81,7 +82,7 @@ class MarkovBackend(Backend):
                     word in followers)
             yield (line + u'\n').encode('utf8')
 
-    def save_brain(self):
+    def save(self):
         with tempfile.NamedTemporaryFile(
                 'w', delete=False) as tf:
             name = tf.name
@@ -89,9 +90,6 @@ class MarkovBackend(Backend):
                 tf.write(line)
         shutil.move(name, self.brain_file)
 
-
-    def clean_up(self):
-        self.save_brain()
 
     def sanitize(self, word):
         return word.replace('\n', '').replace('\r', '')
@@ -142,7 +140,7 @@ class MegaHALBackend(Backend):
     def learn(self, line):
         self.mh.learn(line.encode('utf8'))
 
-    def clean_up(self):
+    def save(self):
         self.mh.cleanup()
 
     def reply(self, message):
@@ -298,7 +296,7 @@ def train(backend, train_file):
     print("Training...")
     backend.train_file(train_file)
     print("Training complete!")
-    backend.clean_up()
+    backend.save()
 
 
 def run(config, backend):
@@ -314,8 +312,14 @@ def run(config, backend):
     if current_display_name != config.display_name:
         client.api.set_display_name(client.user_id, config.display_name)
 
+    last_save = time.time()
+
     while True:
         client.listen_for_events()
+        # save every 10 minutes or so
+        if time.time() - last_save > 60 * 10:
+            backend.save()
+            last_save = time.time()
 
 
 def main():
@@ -360,7 +364,7 @@ def main():
                         " the problem resolves itself...")
                 time.sleep(60)
             finally:
-                backend.clean_up()
+                backend.save()
                 print('Saving config...')
                 config.write()
 
