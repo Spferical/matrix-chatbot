@@ -242,7 +242,7 @@ def get_default_configparser():
 def reply(client, event, message):
     room = get_room(client, event)
     print("Reply: %s" % message)
-    room.send_text(message.encode('utf8'))
+    room.send_text(message.encode('ascii', errors='ignore'))
 
 
 def get_name(sc):
