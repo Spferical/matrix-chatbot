@@ -90,7 +90,6 @@ class MarkovBackend(Backend):
                 tf.write(line)
         shutil.move(name, self.brain_file)
 
-
     def sanitize(self, word):
         return word.replace('\n', '').replace('\r', '')
 
