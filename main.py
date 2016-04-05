@@ -78,8 +78,8 @@ class MarkovBackend(Backend):
         for pair in self.brain:
             followers = self.brain[pair]
             line = u"{} {} ".format(pair[0], pair[1])
-            line +=u' '.join(u"{} {}".format(word, followers[word]) for
-                    word in followers)
+            line += u' '.join(u"{} {}".format(word, followers[word]) for
+                              word in followers)
             yield (line + u'\n').encode('utf8')
 
     def save(self):
@@ -243,7 +243,6 @@ def handle_command(config, client, event, command, args):
                   "Response rate set to %f in this room." % rate)
 
 
-
 def get_default_configparser():
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
@@ -383,7 +382,7 @@ def main():
                 run(config, backend)
             except (MatrixRequestError, ConnectionError):
                 print("Warning: disconnected. Waiting a minute to see if"
-                        " the problem resolves itself...")
+                      " the problem resolves itself...")
                 time.sleep(60)
             finally:
                 backend.save()
