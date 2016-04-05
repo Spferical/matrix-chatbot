@@ -146,7 +146,7 @@ class MarkovBackend(Backend):
         while (words[-2], words[-1]) in self.brain and len(words) < 100:
             word = self.get_random_next_link(words[-2], words[-1])
             words.append(word)
-        return ' '.join(words).capitalize()
+        return ' '.join(words)
 
 
 class MegaHALBackend(Backend):
@@ -295,11 +295,11 @@ def handle_event(event, client, backend, config):
             message = unicode(event['content']['body'])
             # lowercase message so we can search it
             # case-insensitively
-            message = message.lower()
+            lower_message = message.lower()
             print("Handling message: %s" % message)
             command_found = False
             for command in COMMANDS:
-                match = re.search(command, message)
+                match = re.search(command.lower(), lower_message)
                 if match:
                     command_found = True
                     args = message.split(' ')
@@ -307,8 +307,8 @@ def handle_event(event, client, backend, config):
                     break
             if not command_found:
                 room = get_room(client, event)
-                if config.username in message or \
-                        config.display_name.lower() in message or \
+                if config.username.lower() in lower_message or \
+                        config.display_name.lower() in lower_message or \
                         random.random() < get_response_rate(config, room):
                     response = backend.reply(message)
                     time.sleep(3)
