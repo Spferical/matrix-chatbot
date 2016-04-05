@@ -174,6 +174,7 @@ class Config(object):
     def __init__(self, cfgparser):
         self.backend = cfgparser.get('General', 'backend')
         self.display_name = cfgparser.get('General', 'display name')
+        self.learning = cfgparser.get('General', 'learning')
         self.username = cfgparser.get('Login', 'username')
         self.password = cfgparser.get('Login', 'password')
         self.server = cfgparser.get('Login', 'server')
@@ -192,6 +193,7 @@ class Config(object):
         cfgparser.set('General', '# Valid backends are "markov" and "megahal"')
         cfgparser.set('General', 'backend', self.backend)
         cfgparser.set('General', 'display name', self.display_name)
+        cfgparser.set('General', 'learning', self.learning)
         cfgparser.add_section('Login')
         cfgparser.set('Login', 'username', self.username)
         cfgparser.set('Login', 'password', self.password)
@@ -250,6 +252,7 @@ def get_default_configparser():
     config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
     config.set('General', 'display name', 'Markov')
+    config.set('General', 'learning', 'True')
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
@@ -310,7 +313,8 @@ def handle_event(event, client, backend, config):
                     response = backend.reply(message)
                     time.sleep(3)
                     reply(client, event, response)
-                backend.learn(message)
+                if config.learning:
+                    backend.learn(message)
 
 
 def train(backend, train_file):
