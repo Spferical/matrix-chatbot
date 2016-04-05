@@ -109,21 +109,44 @@ class MarkovBackend(Backend):
             else:
                 self.brain[prefix] = {follow: 1}
 
+    def get_random_next_link(self, word1, word2):
+        if (word1, word2) not in self.brain:
+            return None
+
+        possibilities = self.brain[(word1, word2)]
+        total = 0
+        for p in possibilities:
+            total += possibilities[p]
+
+        num = random.randint(1, total)
+        total = 0
+        for p in possibilities:
+            total += possibilities[p]
+            if total >= num:
+                break
+        return p
+
     def reply(self, message):
-        words = []
-        words.extend(random.choice(self.brain.keys()))
+        seed = None
+        # try to seed reply from the message
+        possible_seed_words = message.split()
+        while seed is None and possible_seed_words:
+            message_word = random.choice(possible_seed_words)
+            seeds = [key for key in self.brain.keys() if message_word in key]
+            if seeds:
+                seed = random.choice(seeds)
+            else:
+                possible_seed_words.remove(message_word)
+
+        # we couldn't seed the reply from the input
+        # fall back to random seed
+        if seed is None:
+            seed = random.choice(self.brain.keys())
+
+        words = list(seed)
         while (words[-2], words[-1]) in self.brain and len(words) < 100:
-            possibilities = self.brain[(words[-2], words[-1])]
-            total = 0
-            for p in possibilities:
-                total += possibilities[p]
-            num = random.randint(1, total)
-            total = 0
-            for p in possibilities:
-                total += possibilities[p]
-                if total >= num:
-                    break
-            words.append(p)
+            word = self.get_random_next_link(words[-2], words[-1])
+            words.append(word)
         return ' '.join(words).capitalize()
 
 
