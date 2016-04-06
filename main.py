@@ -174,7 +174,7 @@ class Config(object):
     def __init__(self, cfgparser):
         self.backend = cfgparser.get('General', 'backend')
         self.display_name = cfgparser.get('General', 'display name')
-        self.learning = cfgparser.get('General', 'learning')
+        self.learning = cfgparser.getboolean('General', 'learning')
         self.username = cfgparser.get('Login', 'username')
         self.password = cfgparser.get('Login', 'password')
         self.server = cfgparser.get('Login', 'server')
@@ -252,7 +252,7 @@ def get_default_configparser():
     config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
     config.set('General', 'display name', 'Markov')
-    config.set('General', 'learning', 'True')
+    config.set('General', 'learning', True)
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
