@@ -217,12 +217,6 @@ def handle_command(config, client, event, command, args):
     command = command.lower()
     if command == '!rate':
         if args:
-            if len(args) > 1:
-                reply(client, event,
-                      "Too many arguments. Command is "
-                      "!rate [response rate].")
-                return
-
             try:
                 num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
                 if not num:
