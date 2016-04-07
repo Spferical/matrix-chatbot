@@ -186,6 +186,12 @@ class Config(object):
             room_id = room_id.replace('-colon-', ':')
             self.response_rates[room_id] = float(rate)
 
+    def get_response_rate(self, room_id):
+        if room_id in self.response_rates:
+            return self.response_rates[room_id]
+        else:
+            return self.default_response_rate
+
     def write(self):
         cfgparser = ConfigParser()
         cfgparser.add_section('General')
@@ -209,38 +215,6 @@ class Config(object):
             cfgparser.write(configfile)
 
 
-def get_room(client, event):
-    return client.rooms[event['room_id']]
-
-
-def handle_command(config, client, event, command, args):
-    command = command.lower()
-    if command == '!rate':
-        if args:
-            try:
-                num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
-                if not num:
-                    reply(client, event,
-                          "Error: Could not parse number.")
-                    return
-                if num[-1] == '%':
-                    rate = float(num[:-1]) / 100
-                else:
-                    rate = float(num)
-                room = get_room(client, event)
-                config.response_rates[room.room_id] = rate
-                reply(client, event,
-                      "Response rate set to %f." % rate)
-            except ValueError:
-                reply(client, event,
-                      "Error: Could not parse number.")
-        else:
-            room = get_room(client, event)
-            rate = get_response_rate(config, room)
-            reply(client, event,
-                  "Response rate set to %f in this room." % rate)
-
-
 def get_default_configparser():
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
@@ -257,56 +231,115 @@ def get_default_configparser():
     return config
 
 
-def reply(client, event, message):
-    room = get_room(client, event)
-    print("Reply: %s" % message)
-    room.send_text(message.encode('ascii', errors='ignore'))
+class Bot(object):
+    def __init__(self, config, chat_backend):
+        client = MatrixClient(config.server)
+        client.login_with_password(config.username, config.password)
 
+        self.config = config
+        self.client = client
+        self.chat_backend = chat_backend
+        self.message_queued = None
+        self.room_id_queued = None
 
-def get_response_rate(config, room):
-    if room.room_id in config.response_rates:
-        return config.response_rates[room.room_id]
-    else:
-        return config.default_response_rate
+    def get_room(self, event):
+        return self.client.rooms[event['room_id']]
 
+    def queue_reply(self, event, message):
+        self.message_queued = message
+        self.room_id_queued = event['room_id']
 
-def handle_event(event, client, backend, config):
-    # join rooms if invited
-    if event['type'] == 'm.room.member':
-        if 'content' in event and 'membership' in event['content']:
-            if event['content']['membership'] == 'invite':
-                room = event['room_id']
-                client.join_room(room)
-                print('Joined room ' + room)
-    elif event['type'] == 'm.room.message':
-        # only care about text messages by other people
-        if event['user_id'] != client.user_id and \
-                event['content']['msgtype'] == 'm.text':
-            message = unicode(event['content']['body'])
-            # lowercase message so we can search it
-            # case-insensitively
-            lower_message = message.lower()
-            print("Handling message: %s" % message)
-            command_found = False
-            for command in COMMANDS:
-                match = re.search(command.lower(), lower_message)
-                if match and match.start() == 0 \
-                        or config.username.lower() in lower_message \
-                        or config.display_name.lower() in lower_message:
-                    command_found = True
-                    args = message[match.start():].split(' ')
-                    handle_command(config, client, event, args[0], args[1:])
-                    break
-            if not command_found:
-                room = get_room(client, event)
-                if config.username.lower() in lower_message or \
-                        config.display_name.lower() in lower_message or \
-                        random.random() < get_response_rate(config, room):
-                    response = backend.reply(message)
-                    time.sleep(3)
-                    reply(client, event, response)
-                if config.learning:
-                    backend.learn(message)
+    def handle_command(self, event, command, args):
+        command = command.lower()
+        if command == '!rate':
+            if args:
+                try:
+                    num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
+                    if not num:
+                        self.reply(event, "Error: Could not parse number.")
+                        return
+                    if num[-1] == '%':
+                        rate = float(num[:-1]) / 100
+                    else:
+                        rate = float(num)
+                    self.config.response_rates[event['room_id']] = rate
+                    self.reply(event, "Response rate set to %f." % rate)
+                except ValueError:
+                    reply(client, event, "Error: Could not parse number.")
+            else:
+                rate = self.config.get_response_rate(event['room_id'])
+                self.reply(
+                    event, "Response rate set to %f in this room." % rate)
+
+    def reply(self, event, message):
+        room = self.get_room(event)
+        print("Reply: %s" % message)
+        room.send_text(message.encode('ascii', errors='ignore'))
+
+    def is_name_in_message(self, message):
+        regex = "({}|{})".format(
+            self.config.display_name, self.config.username)
+        return re.match(regex, message, flags=re.IGNORECASE)
+
+    def handle_event(self, event):
+        # join rooms if invited
+        if event['type'] == 'm.room.member':
+            if 'content' in event and 'membership' in event['content']:
+                if event['content']['membership'] == 'invite':
+                    room = event['room_id']
+                    self.client.join_room(room)
+                    print('Joined room ' + room)
+        elif event['type'] == 'm.room.message':
+            # only care about text messages by other people
+            if event['user_id'] != self.client.user_id and \
+                    event['content']['msgtype'] == 'm.text':
+                message = unicode(event['content']['body'])
+                # lowercase message so we can search it
+                # case-insensitively
+                print("Handling message: %s" % message)
+                command_found = False
+                for command in COMMANDS:
+                    match = re.search(command, message, flags=re.IGNORECASE)
+                    if match and (match.start() == 0 or
+                                  self.is_name_in_message(message)):
+                        command_found = True
+                        args = message[match.start():].split(' ')
+                        self.handle_command(event, args[0], args[1:])
+                        break
+                if not command_found:
+                    room = self.get_room(event)
+                    response_rate = self.config.get_response_rate(room)
+                    if self.is_name_in_message(message) or \
+                            random.random() < response_rate:
+                        response = self.chat_backend.reply(message)
+                        self.queue_reply(event, response)
+                    if self.config.learning:
+                        self.chat_backend.learn(message)
+
+    def run(self):
+        self.client.add_listener(self.handle_event)
+
+        current_display_name = self.client.api.get_display_name(
+                self.client.user_id)
+        if current_display_name != self.config.display_name:
+            self.client.api.set_display_name(
+                    self.client.user_id, self.config.display_name)
+
+        last_save = time.time()
+
+        self.client.start_listener_thread()
+
+        while True:
+            time.sleep(1)
+            if self.message_queued:
+                room = self.client.rooms[self.room_id_queued]
+                print("Sending message: " + self.message_queued)
+                room.send_text(self.message_queued)
+                self.room_id_queued = self.message_queued = None
+            # save every 10 minutes or so
+            if time.time() - last_save > 60 * 10:
+                self.chat_backend.save()
+                last_save = time.time()
 
 
 def train(backend, train_file):
@@ -314,29 +347,6 @@ def train(backend, train_file):
     backend.train_file(train_file)
     print("Training complete!")
     backend.save()
-
-
-def run(config, backend):
-    client = MatrixClient(config.server)
-    token = client.login_with_password(config.username, config.password)
-
-    def callback(event):
-        handle_event(event, client, backend, config)
-
-    client.add_listener(callback)
-
-    current_display_name = client.api.get_display_name(client.user_id)
-    if current_display_name != config.display_name:
-        client.api.set_display_name(client.user_id, config.display_name)
-
-    last_save = time.time()
-
-    while True:
-        client.listen_for_events()
-        # save every 10 minutes or so
-        if time.time() - last_save > 60 * 10:
-            backend.save()
-            last_save = time.time()
 
 
 def main():
@@ -375,7 +385,7 @@ def main():
     else:
         while True:
             try:
-                run(config, backend)
+                Bot(config, backend).run()
             except (MatrixRequestError, ConnectionError):
                 print("Warning: disconnected. Waiting a minute to see if"
                       " the problem resolves itself...")
