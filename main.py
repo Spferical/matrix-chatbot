@@ -214,6 +214,7 @@ def get_room(client, event):
 
 
 def handle_command(config, client, event, command, args):
+    command = command.lower()
     if command == '!rate':
         if args:
             if len(args) > 1:
@@ -303,7 +304,7 @@ def handle_event(event, client, backend, config):
                 match = re.search(command.lower(), lower_message)
                 if match:
                     command_found = True
-                    args = message.split(' ')
+                    args = message[match.start():match.end()].split(' ')
                     handle_command(config, client, event, args[0], args[1:])
                     break
             if not command_found:
