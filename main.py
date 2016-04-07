@@ -296,9 +296,11 @@ def handle_event(event, client, backend, config):
             command_found = False
             for command in COMMANDS:
                 match = re.search(command.lower(), lower_message)
-                if match:
+                if match and match.start() == 0 \
+                        or config.username.lower() in lower_message \
+                        or config.display_name.lower() in lower_message:
                     command_found = True
-                    args = message[match.start():match.end()].split(' ')
+                    args = message[match.start():].split(' ')
                     handle_command(config, client, event, args[0], args[1:])
                     break
             if not command_found:
