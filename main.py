@@ -263,12 +263,6 @@ def reply(client, event, message):
     room.send_text(message.encode('ascii', errors='ignore'))
 
 
-def get_name(sc):
-    reply = sc.api_call("auth.test")
-    data = json.loads(reply.decode('utf-8'))
-    return data['user']
-
-
 def get_response_rate(config, room):
     if room.room_id in config.response_rates:
         return config.response_rates[room.room_id]
