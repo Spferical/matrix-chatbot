@@ -330,14 +330,17 @@ class Bot(object):
         return response['displayname']
 
     def run(self):
-        self.client.add_listener(self.handle_event)
-
         current_display_name = self.get_display_name()
         if current_display_name != self.config.display_name:
             self.set_display_name(self.config.display_name)
 
         last_save = time.time()
 
+        # get rid of initial event sync
+        self.client.listen_for_events()
+
+        # set the callback and start listening in a background thread
+        self.client.add_listener(self.handle_event)
         self.client.start_listener_thread()
 
         while True:
