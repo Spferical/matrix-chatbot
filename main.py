@@ -317,14 +317,22 @@ class Bot(object):
                     if self.config.learning:
                         self.chat_backend.learn(message)
 
+    def set_display_name(self, display_name):
+        body = {"displayname": display_name}
+        return self.client.api._send(
+            "PUT", "/profile/" + self.client.user_id + "/displayname", body)
+
+    def get_display_name(self):
+        response = self.client.api._send(
+            "GET", "/profile/" + self.client.user_id + "/displayname")
+        return response['displayname']
+
     def run(self):
         self.client.add_listener(self.handle_event)
 
-        current_display_name = self.client.api.get_display_name(
-                self.client.user_id)
+        current_display_name = self.get_display_name()
         if current_display_name != self.config.display_name:
-            self.client.api.set_display_name(
-                    self.client.user_id, self.config.display_name)
+            self.set_display_name(self.config.display_name)
 
         last_save = time.time()
 
