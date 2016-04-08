@@ -14,6 +14,7 @@ import shutil
 import codecs
 import time
 import traceback
+import urllib
 
 
 COMMANDS = [
@@ -316,6 +317,7 @@ class Bot(object):
                         self.queue_reply(event, response)
                     if self.config.learning:
                         self.chat_backend.learn(message)
+        self.send_read_receipt(event)
 
     def set_display_name(self, display_name):
         body = {"displayname": display_name}
@@ -349,6 +351,14 @@ class Bot(object):
             if time.time() - last_save > 60 * 10:
                 self.chat_backend.save()
                 last_save = time.time()
+
+    def send_read_receipt(self, event):
+        if "room_id" in event and "event_id" in event:
+            room_id = urllib.quote(event['room_id'])
+            event_id = urllib.quote(event['event_id'])
+            self.client.api._send("POST", "/rooms/" + room_id +
+                                  "/receipt/m.read/" + event_id,
+                                  api_path="/_matrix/client/r0")
 
 
 def train(backend, train_file):
