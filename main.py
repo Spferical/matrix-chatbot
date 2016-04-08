@@ -13,6 +13,7 @@ import tempfile
 import shutil
 import codecs
 import time
+import traceback
 
 
 COMMANDS = [
@@ -387,6 +388,7 @@ def main():
             try:
                 Bot(config, backend).run()
             except (MatrixRequestError, ConnectionError):
+                traceback.print_exc()
                 print("Warning: disconnected. Waiting a minute to see if"
                       " the problem resolves itself...")
                 time.sleep(60)
