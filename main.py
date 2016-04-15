@@ -235,14 +235,16 @@ def get_default_configparser():
 
 class Bot(object):
     def __init__(self, config, chat_backend):
-        client = MatrixClient(config.server)
-        client.login_with_password(config.username, config.password)
-
         self.config = config
-        self.client = client
+        self.client = None
         self.chat_backend = chat_backend
         self.message_queued = None
         self.room_id_queued = None
+
+    def login(self):
+        client = MatrixClient(self.config.server)
+        client.login_with_password(self.config.username, self.config.password)
+        self.client = client
 
     def get_room(self, event):
         return self.client.rooms[event['room_id']]
@@ -407,7 +409,9 @@ def main():
     else:
         while True:
             try:
-                Bot(config, backend).run()
+                bot = Bot(config, backend)
+                bot.login()
+                bot.run()
             except (MatrixRequestError, ConnectionError):
                 traceback.print_exc()
                 print("Warning: disconnected. Waiting a minute to see if"

@@ -1,12 +1,12 @@
 import unittest
 
-from main import MarkovBackend
+import main
 
 
 class TestMarkov(unittest.TestCase):
 
     def setUp(self):
-        self.markov = MarkovBackend()
+        self.markov = main.MarkovBackend()
         self.markov.learn("1 2 3 4 5 6 7 8 9 10")
         self.markov.learn("ALL CAPS IS GREAT")
 
@@ -22,6 +22,20 @@ class TestMarkov(unittest.TestCase):
         # should be case insensitive
         reply = self.markov.reply("all")
         self.assertIn("ALL", reply.split())
+
+    def test_is_name_in_message(self):
+        configparser = main.get_default_configparser()
+        configparser.set('General', 'display name', 'DisplayName')
+        config = main.Config(configparser)
+        bot = main.Bot(config, main.Backend())
+
+        self.assertTrue(bot.is_name_in_message("displayName?"))
+        self.assertTrue(bot.is_name_in_message("what up displayName? sdf"))
+        self.assertFalse(bot.is_name_in_message("what up d1spl@yName"))
+        config.display_name = "Eldie"
+        self.assertTrue(bot.is_name_in_message("eldie?"))
+        self.assertTrue(bot.is_name_in_message("what up eldie?"))
+        self.assertFalse(bot.is_name_in_message(''))
 
 
 if __name__ == '__main__':
