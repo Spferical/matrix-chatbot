@@ -283,7 +283,7 @@ class Bot(object):
     def is_name_in_message(self, message):
         regex = "({}|{})".format(
             self.config.display_name, self.config.username)
-        return re.match(regex, message, flags=re.IGNORECASE)
+        return re.search(regex, message, flags=re.IGNORECASE)
 
     def handle_event(self, event):
         # join rooms if invited
