@@ -224,7 +224,7 @@ def get_default_configparser():
     config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
     config.set('General', 'display name', 'Markov')
-    config.set('General', 'learning', True)
+    config.set('General', 'learning', 'on')
     config.add_section('Login')
     config.set('Login', 'username', 'username')
     config.set('Login', 'password', 'password')
