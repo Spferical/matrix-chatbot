@@ -23,6 +23,23 @@ class TestMarkov(unittest.TestCase):
         reply = self.markov.reply("all")
         self.assertIn("ALL", reply.split())
 
+    def test_brain(self):
+        self.markov.load_brain_line(u'I have a 1 the 2 smores 3 potatoes 1')
+        self.assertEqual(
+            self.markov.brain.get_followers((u'I', u'have')),
+            {u'a': 1, u'the': 2, u'smores': 3, u'potatoes': 1})
+
+        self.markov.load_brain_line(u'What the what 1')
+        self.assertEqual(
+            self.markov.brain.get_followers((u'What', u'the')),
+            {u'what': 1})
+
+        self.markov.learn(u'Test that first and second are '
+                          '\n\nap\n\npro\nximately\n\r\n')
+        self.assertEqual(
+            self.markov.brain.get_followers((u'second', u'are')),
+            {u'approximately': 1})
+
     def test_is_name_in_message(self):
         configparser = main.get_default_configparser()
         configparser.set('General', 'display name', 'DisplayName')
@@ -36,6 +53,14 @@ class TestMarkov(unittest.TestCase):
         self.assertTrue(bot.is_name_in_message("eldie?"))
         self.assertTrue(bot.is_name_in_message("what up eldie?"))
         self.assertFalse(bot.is_name_in_message(''))
+
+    def test_saving(self):
+        lines = self.markov.get_save_brain_lines()
+        markov2 = main.MarkovBackend()
+        for line in lines:
+            markov2.load_brain_line(line)
+        self.assertEqual(dict(markov2.brain.get_pairs_and_followers()),
+                         dict(self.markov.brain.get_pairs_and_followers()))
 
 
 if __name__ == '__main__':
