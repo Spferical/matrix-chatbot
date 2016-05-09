@@ -52,10 +52,10 @@ class Backend(object):
 class MarkovBrain(object):
     """Wrapper around brain dictionary with self.mutexes to prevent concurrency
     errors."""
-    mutex = Lock()
 
     def __init__(self):
         self._data = {}
+        self.mutex = Lock()
 
     def set_followers(self, word_pair, followers):
         with self.mutex:
