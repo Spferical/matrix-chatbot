@@ -15,6 +15,7 @@ import codecs
 import time
 import traceback
 import urllib
+from threading import Lock
 
 
 COMMANDS = [
@@ -48,11 +49,53 @@ class Backend(object):
         return "(dummy response)"
 
 
+class MarkovBrain(object):
+    """Wrapper around brain dictionary with self.mutexes to prevent concurrency
+    errors."""
+    mutex = Lock()
+
+    def __init__(self):
+        self._data = {}
+
+    def set_followers(self, word_pair, followers):
+        with self.mutex:
+            self._data[word_pair] = followers
+
+    def get_followers(self, word_pair):
+        with self.mutex:
+            return self._data.get(word_pair, [])
+
+    def get_pairs(self):
+        with self.mutex:
+            for pair in self._data:
+                yield pair
+
+    def get_pairs_and_followers(self):
+        with self.mutex:
+            for item in self._data.items():
+                yield item
+
+    def contains_pair(self, word_pair):
+        with self.mutex:
+            return word_pair in self._data
+
+    def add(self, word_pair, follower):
+        with self.mutex:
+            if word_pair in self._data:
+                followers = self._data[word_pair]
+                followers[follower] = followers.get(follower, 0) + 1
+            else:
+                self._data[word_pair] = {follower: 1}
+
+    def __len__(self):
+        return len(self._data)
+
+
 class MarkovBackend(Backend):
     brain_file = 'brain.txt'
 
     def __init__(self):
-        self.brain = {}
+        self.brain = MarkovBrain()
 
     def load_brain(self):
         # self.brain_file is a plaintext file.
@@ -62,23 +105,22 @@ class MarkovBackend(Backend):
         # follow the prefix and their weight.
         # e.g. "the fox jumped 2 ran 3 ate 1 ..."
         try:
-            with codecs.open(
-                    self.brain_file, encoding='utf8', mode='r') as brainfile:
+            with codecs.open(self.brain_file, encoding='utf8',
+                             mode='r') as brainfile:
                 for line in brainfile:
                     self.load_brain_line(line)
         except IOError:
-            self.brain = {}
+            self.brain = MarkovBrain()
 
     def load_brain_line(self, line):
-            words = line.rstrip().split(' ')
-            followers = {}
-            for i in range(2, len(words), 2):
-                followers[words[i]] = int(words[i + 1])
-            self.brain[(words[0], words[1])] = followers
+        words = line.rstrip().split(' ')
+        followers = {}
+        for i in range(2, len(words), 2):
+            followers[words[i]] = int(words[i + 1])
+        self.brain.set_followers(tuple(words[0:2]), followers)
 
     def get_save_brain_lines(self):
-        for pair in self.brain:
-            followers = self.brain[pair]
+        for pair, followers in self.brain.get_pairs_and_followers():
             line = u"{} {} ".format(pair[0], pair[1])
             line += u' '.join(u"{} {}".format(word, followers[word]) for
                               word in followers)
@@ -102,19 +144,13 @@ class MarkovBackend(Backend):
         for i in range(len(words) - 2):
             prefix = words[i], words[i + 1]
             follow = words[i + 2]
-            if prefix in self.brain:
-                if follow in self.brain[prefix]:
-                    self.brain[prefix][follow] += 1
-                else:
-                    self.brain[prefix][follow] = 1
-            else:
-                self.brain[prefix] = {follow: 1}
+            self.brain.add(prefix, follow)
 
     def get_random_next_link(self, word1, word2):
-        if (word1, word2) not in self.brain:
+        possibilities = self.brain.get_followers((word1, word2))
+        if not possibilities:
             return None
 
-        possibilities = self.brain[(word1, word2)]
         total = 0
         for p in possibilities:
             total += possibilities[p]
@@ -133,8 +169,9 @@ class MarkovBackend(Backend):
         possible_seed_words = message.split()
         while seed is None and possible_seed_words:
             message_word = random.choice(possible_seed_words)
-            seeds = [key for key in self.brain.keys()
-                     if message_word.lower() in (word.lower() for word in key)]
+            seeds = [key for key in self.brain.get_pairs()
+                     if message_word.lower() in
+                     (word.lower() for word in key)]
             if seeds:
                 seed = random.choice(seeds)
             else:
@@ -143,10 +180,12 @@ class MarkovBackend(Backend):
         # we couldn't seed the reply from the input
         # fall back to random seed
         if seed is None:
-            seed = random.choice(self.brain.keys())
+            num = random.randint(0, len(self.brain) - 1)
+            seed = self.brain.get_pairs()[num]
 
         words = list(seed)
-        while (words[-2], words[-1]) in self.brain and len(words) < 100:
+        while self.brain.contains_pair((words[-2], words[-1])) and \
+                len(words) < 100:
             word = self.get_random_next_link(words[-2], words[-1])
             words.append(word)
         return ' '.join(words)
