@@ -197,19 +197,24 @@ class MegaHALBackend(Backend):
         # only loads megahal if backend is being used
         import mh_python
         self.mh = mh_python
+        self.mutex = Lock()
 
     def load_brain(self):
-        self.mh.initbrain()
+        with self.mutex:
+            self.mh.initbrain()
 
     def learn(self, line):
-        self.mh.learn(line.encode('utf8'))
+        with self.mutex:
+            self.mh.learn(line.encode('utf8'))
 
     def save(self):
-        self.mh.cleanup()
+        with self.mutex:
+            self.mh.cleanup()
 
     def reply(self, message):
-        return unicode(
-            self.mh.doreply(message.encode('utf8')), 'utf8', 'replace')
+        with self.mutex:
+            return unicode(
+                self.mh.doreply(message.encode('utf8')), 'utf8', 'replace')
 
 
 class Config(object):
