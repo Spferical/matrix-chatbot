@@ -15,7 +15,7 @@ import codecs
 import time
 import traceback
 import urllib
-from threading import Lock
+import threading
 
 
 COMMANDS = [
@@ -55,7 +55,7 @@ class MarkovBrain(object):
 
     def __init__(self):
         self._data = {}
-        self.mutex = Lock()
+        self.mutex = threading.Lock()
 
     def set_followers(self, word_pair, followers):
         with self.mutex:
@@ -197,7 +197,7 @@ class MegaHALBackend(Backend):
         # only loads megahal if backend is being used
         import mh_python
         self.mh = mh_python
-        self.mutex = Lock()
+        self.mutex = threading.Lock()
 
     def load_brain(self):
         with self.mutex:
@@ -387,10 +387,20 @@ class Bot(object):
 
         # set the callback and start listening in a background thread
         self.client.add_listener(self.handle_event)
-        self.client.start_listener_thread()
+
+        # start listen thread
+        thread = threading.Thread(target=self.client.listen_forever)
+        thread.daemon = True
+        thread.start()
 
         while True:
             time.sleep(1)
+            # restart thread if dead
+            if not thread.is_alive():
+                thread = threading.Thread(target=self.client.listen_forever)
+                thread.daemon = True
+                thread.start()
+            # send any queued messages
             if self.message_queued:
                 room = self.client.rooms[self.room_id_queued]
                 print("Sending message: " + self.message_queued)
