@@ -13,6 +13,7 @@ import codecs
 import traceback
 import urllib
 import threading
+import logging
 
 
 COMMANDS = [
@@ -315,7 +316,7 @@ class Bot(object):
 
     def reply(self, event, message):
         room = self.get_room(event)
-        print("Reply: %s" % message)
+        logging.info("Reply: %s" % message)
         room.send_text(message.encode('ascii', errors='ignore'))
 
     def is_name_in_message(self, message):
@@ -330,7 +331,7 @@ class Bot(object):
                 if event['content']['membership'] == 'invite':
                     room = event['room_id']
                     self.client.join_room(room)
-                    print('Joined room ' + room)
+                    logging.info('Joined room ' + room)
         elif event['type'] == 'm.room.message':
             # only care about text messages by other people
             if event['user_id'] != self.client.user_id and \
@@ -338,7 +339,7 @@ class Bot(object):
                 message = unicode(event['content']['body'])
                 # lowercase message so we can search it
                 # case-insensitively
-                print("Handling message: %s" % message)
+                logging.info("Handling message: %s" % message)
                 command_found = False
                 for command in COMMANDS:
                     match = re.search(command, message, flags=re.IGNORECASE)
@@ -377,12 +378,14 @@ class Bot(object):
         last_save = time.time()
 
         # get rid of initial event sync
+        logging.info("initial event stream")
         self.client.listen_for_events()
 
         # set the callback and start listening in a background thread
         self.client.add_listener(self.handle_event)
 
         # start listen thread
+        logging.info("starting listener thread")
         thread = threading.Thread(target=self.client.listen_forever)
         thread.daemon = True
         thread.start()
@@ -397,7 +400,7 @@ class Bot(object):
             # send any queued messages
             if self.message_queued:
                 room = self.client.rooms[self.room_id_queued]
-                print("Sending message: " + self.message_queued)
+                logging.info("Sending message: " + self.message_queued)
                 room.send_text(self.message_queued)
                 self.room_id_queued = self.message_queued = None
             # save every 10 minutes or so
@@ -422,7 +425,6 @@ def train(backend, train_file):
 
 
 def main():
-    global debug
     cfgparser = ConfigParser()
     success = cfgparser.read('config.cfg')
     if not success:
@@ -439,17 +441,28 @@ def main():
     argparser = argparse.ArgumentParser(
         description="A chatbot for Matrix (matrix.org)")
     argparser.add_argument("--debug",
-                           help="Output raw events to help debug",
+                           help="Print out way more things.",
                            action="store_true")
     argparser.add_argument("--train", metavar="TRAIN.TXT", type=str,
                            help="Train the bot with a file of text.")
     args = vars(argparser.parse_args())
     debug = args['debug']
+
+    # suppress logs of libraries
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    log_level = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(level=log_level,
+                        format='%(asctime)s %(name)s '
+                        '%(levelname)s %(message)s')
+
     train_file = args['train']
 
     backends = {'markov': MarkovBackend,
                 'megahal': MegaHALBackend}
     backend = backends[config.backend]()
+    logging.info("loading brain")
     backend.load_brain()
 
     if train_file:
@@ -462,12 +475,12 @@ def main():
                 bot.run()
             except (MatrixRequestError, ConnectionError):
                 traceback.print_exc()
-                print("Warning: disconnected. Waiting a minute to see if"
-                      " the problem resolves itself...")
+                logging.warning("disconnected. Waiting a minute to see if"
+                                " the problem resolves itself...")
                 time.sleep(60)
             finally:
                 backend.save()
-                print('Saving config...')
+                logging.info('Saving config...')
                 config.write()
 
 
