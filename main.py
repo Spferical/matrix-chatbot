@@ -7,12 +7,9 @@ import argparse
 import random
 from ConfigParser import ConfigParser
 import re
-import json
-import datetime
 import tempfile
 import shutil
 import codecs
-import time
 import traceback
 import urllib
 import threading
