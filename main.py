@@ -301,19 +301,16 @@ class Bot(object):
         command = command.lower()
         if command == '!rate':
             if args:
-                try:
-                    num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
-                    if not num:
-                        self.reply(event, "Error: Could not parse number.")
-                        return
-                    if num[-1] == '%':
-                        rate = float(num[:-1]) / 100
-                    else:
-                        rate = float(num)
-                    self.config.response_rates[event['room_id']] = rate
-                    self.reply(event, "Response rate set to %f." % rate)
-                except ValueError:
-                    reply(client, event, "Error: Could not parse number.")
+                num = re.match(r'[0-9]*(\.[0-9]+)?(%|)', args[0]).group()
+                if not num:
+                    self.reply(event, "Error: Could not parse number.")
+                    return
+                if num[-1] == '%':
+                    rate = float(num[:-1]) / 100
+                else:
+                    rate = float(num)
+                self.config.response_rates[event['room_id']] = rate
+                self.reply(event, "Response rate set to %f." % rate)
             else:
                 rate = self.config.get_response_rate(event['room_id'])
                 self.reply(
