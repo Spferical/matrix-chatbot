@@ -14,6 +14,7 @@ import traceback
 import urllib
 import threading
 import logging
+from itertools import islice
 
 
 COMMANDS = [
@@ -179,7 +180,11 @@ class MarkovBackend(Backend):
         # fall back to random seed
         if seed is None:
             num = random.randint(0, len(self.brain) - 1)
-            seed = self.brain.get_pairs()[num]
+
+            def get_nth(generator, n):
+                return next(islice(generator, n, n + 1))
+
+            seed = get_nth(self.brain.get_pairs(), num)
 
         words = list(seed)
         while self.brain.contains_pair((words[-2], words[-1])) and \
@@ -351,7 +356,7 @@ class Bot(object):
                         break
                 if not command_found:
                     room = self.get_room(event)
-                    response_rate = self.config.get_response_rate(room)
+                    response_rate = self.config.get_response_rate(room.room_id)
                     if self.is_name_in_message(message) or \
                             random.random() < response_rate:
                         response = self.chat_backend.reply(message)
