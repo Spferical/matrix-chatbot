@@ -415,8 +415,8 @@ class Bot(object):
 
     def send_read_receipt(self, event):
         if "room_id" in event and "event_id" in event:
-            room_id = urllib.quote(event['room_id'])
-            event_id = urllib.quote(event['event_id'])
+            room_id = urllib.quote(event['room_id'].encode('utf8'))
+            event_id = urllib.quote(event['event_id'].encode('utf8'))
             self.client.api._send("POST", "/rooms/" + room_id +
                                   "/receipt/m.read/" + event_id,
                                   api_path="/_matrix/client/r0")
