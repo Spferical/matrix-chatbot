@@ -134,7 +134,7 @@ class MarkovBackend(Backend):
         shutil.move(name, self.brain_file)
 
     def sanitize(self, word):
-        return word.replace('\n', '').replace('\r', '')
+        return word.replace('\n', '').replace('\r', '').replace(u'\u2028', '')
 
     def learn(self, line):
         line = line.strip()
