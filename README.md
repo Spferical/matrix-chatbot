@@ -18,3 +18,15 @@ The first time you run it, a config file will be generated for you to edit as ne
 
 You may also want to "train" your bot with a text file before you run it. This can be done with
 `$ python main.py --train trainfile.txt`
+
+## Docker
+
+A dockerfile is also provided for running in docker.
+
+To build the image locally and run the chatbot:
+
+$ docker build . -t matrix-chatbot
+$ docker run -it -v /host/data/path/:/matrixbot/data/ matrix-chatbot
+A config has been generated. Please set your bot's username, password, and homeserver in /host/data/path/config.cfg then run this again.
+$ vim /host/data/path/config.cfg
+$ docker run -d -v /host/data/path/:/matrixbot/data/ matrix-chatbot
