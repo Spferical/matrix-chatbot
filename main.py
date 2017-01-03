@@ -358,7 +358,11 @@ class Bot(object):
                     response_rate = self.config.get_response_rate(room.room_id)
                     if self.is_name_in_message(message) or \
                             random.random() < response_rate:
-                        response = self.chat_backend.reply(message)
+                        # remove name from message and respond to it
+                        message_no_name = re.sub(
+                            ' *' + re.escape(self.get_display_name()) + ' *',
+                            ' ', message, flags=re.IGNORECASE)
+                        response = self.chat_backend.reply(message_no_name)
                         self.queue_reply(event, response)
                     if self.config.learning:
                         self.chat_backend.learn(message)
