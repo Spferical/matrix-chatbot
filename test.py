@@ -6,7 +6,7 @@ import main
 class TestMarkov(unittest.TestCase):
 
     def setUp(self):
-        self.markov = main.MarkovBackend()
+        self.markov = main.MarkovBackend('config.cfg')
         self.markov.learn("1 2 3 4 5 6 7 8 9 10")
         self.markov.learn("ALL CAPS IS GREAT")
 
@@ -56,7 +56,7 @@ class TestMarkov(unittest.TestCase):
 
     def test_saving(self):
         lines = self.markov.get_save_brain_lines()
-        markov2 = main.MarkovBackend()
+        markov2 = main.MarkovBackend('brain2.cfg')
         for line in lines:
             markov2.load_brain_line(line)
         self.assertEqual(dict(markov2.brain.get_pairs_and_followers()),

@@ -90,13 +90,12 @@ class MarkovBrain(object):
 
 
 class MarkovBackend(Backend):
-    brain_file = 'brain.txt'
-
-    def __init__(self):
+    def __init__(self, brain_file):
         self.brain = MarkovBrain()
+        self.brain_file = brain_file
 
     def load_brain(self):
-        # self.brain_file is a plaintext file.
+        # self.brain_file is a plaintext filepath.
         # each line begins with two words, to form the prefix.
         # After that, the line can have any number of pairs of 1 word and 1
         # positive integer following the prefix. These are the words that may
@@ -193,32 +192,6 @@ class MarkovBackend(Backend):
         return ' '.join(words)
 
 
-class MegaHALBackend(Backend):
-
-    def __init__(self):
-        # only loads megahal if backend is being used
-        import mh_python
-        self._mh = mh_python
-        self._mutex = threading.Lock()
-
-    def load_brain(self):
-        with self._mutex:
-            self._mh.initbrain()
-
-    def learn(self, line):
-        with self._mutex:
-            self._mh.learn(line.encode('utf8'))
-
-    def save(self):
-        with self._mutex:
-            self._mh.cleanup()
-
-    def reply(self, message):
-        with self._mutex:
-            return unicode(
-                self._mh.doreply(message.encode('utf8')), 'utf8', 'replace')
-
-
 class Config(object):
     def __init__(self, cfgparser):
         self.backend = cfgparser.get('General', 'backend')
@@ -245,7 +218,6 @@ class Config(object):
         cfgparser.add_section('General')
         cfgparser.set('General', 'default response rate',
                       str(self.default_response_rate))
-        cfgparser.set('General', '# Valid backends are "markov" and "megahal"')
         cfgparser.set('General', 'backend', self.backend)
         cfgparser.set('General', 'display name', self.display_name)
         cfgparser.set('General', 'learning', self.learning)
@@ -267,7 +239,6 @@ def get_default_configparser():
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
     config.set('General', 'default response rate', "0.10")
-    config.set('General', '# Valid backends are "markov" and "megahal"')
     config.set('General', 'backend', 'markov')
     config.set('General', 'display name', 'Markov')
     config.set('General', 'learning', 'on')
@@ -433,26 +404,17 @@ def train(backend, train_file):
 
 
 def main():
-    cfgparser = ConfigParser()
-    success = cfgparser.read('config.cfg')
-    if not success:
-        cfgparser = get_default_configparser()
-        with open('config.cfg', 'wt') as configfile:
-            cfgparser.write(configfile)
-        print("A config has been generated. "
-              "Please set your bot's username, password, and homeserver "
-              "in config.cfg, then run this again.")
-        return
-
-    config = Config(cfgparser)
-
     argparser = argparse.ArgumentParser(
         description="A chatbot for Matrix (matrix.org)")
     argparser.add_argument("--debug",
                            help="Print out way more things.",
                            action="store_true")
-    argparser.add_argument("--train", metavar="TRAIN.TXT", type=str,
+    argparser.add_argument("--train", metavar="train.txt", type=str,
                            help="Train the bot with a file of text.")
+    argparser.add_argument("--config", metavar="config.cfg", type=str,
+                           help="Bot's config file (must be read-writable)")
+    argparser.add_argument("--brain", metavar="brain.txt", type=str,
+                           help="Bot's config file (must be read-writable)")
     args = vars(argparser.parse_args())
     debug = args['debug']
 
@@ -465,16 +427,31 @@ def main():
                         format='%(asctime)s %(name)s '
                         '%(levelname)s %(message)s')
 
-    train_file = args['train']
+    train_path = args['train']
 
-    backends = {'markov': MarkovBackend,
-                'megahal': MegaHALBackend}
-    backend = backends[config.backend]()
+    config_path = args['config'] if args['config'] else 'config.cfg'
+    brain_path = args['brain'] if args['brain'] else 'brain.txt'
+
+    cfgparser = ConfigParser()
+    success = cfgparser.read(config_path)
+    if not success:
+        cfgparser = get_default_configparser()
+        with open(config_path, 'wt') as configfile:
+            cfgparser.write(configfile)
+        print("A config has been generated. "
+              "Please set your bot's username, password, and homeserver "
+              "in " + config_path + " then run this again.")
+        return
+
+    config = Config(cfgparser)
+
+    backends = {'markov': MarkovBackend}
+    backend = backends[config.backend](brain_path)
     logging.info("loading brain")
     backend.load_brain()
 
-    if train_file:
-        train(backend, train_file)
+    if train_path:
+        train(backend, train_path)
     else:
         while True:
             try:
