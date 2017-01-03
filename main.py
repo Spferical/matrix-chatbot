@@ -15,6 +15,7 @@ import urllib
 import threading
 import logging
 from itertools import islice
+import os
 
 
 COMMANDS = [
@@ -429,8 +430,10 @@ def main():
 
     train_path = args['train']
 
-    config_path = args['config'] if args['config'] else 'config.cfg'
-    brain_path = args['brain'] if args['brain'] else 'brain.txt'
+    config_path = args['config'] if args['config'] \
+        else os.getenv('MATRIX_CHATBOT_CONFIG', 'config.cfg')
+    brain_path = args['brain'] if args['brain'] \
+        else os.getenv('MATRIX_CHATBOT_BRAIN', 'brain.txt')
 
     cfgparser = ConfigParser()
     success = cfgparser.read(config_path)
