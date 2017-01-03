@@ -16,11 +16,18 @@ import threading
 import logging
 from itertools import islice
 import os
+import sys
+import signal
 
 
 COMMANDS = [
     '!rate'
 ]
+
+
+def sigterm_handler(_signo, _stack_frame):
+    """Raises SystemExit(0), causing everything to cleanly shut down."""
+    sys.exit(0)
 
 
 class ConfigParser(ConfigParser):
@@ -460,6 +467,7 @@ def main():
     if train_path:
         train(backend, train_path)
     else:
+        signal.signal(signal.SIGTERM, sigterm_handler)
         while True:
             try:
                 bot = Bot(config, backend)
