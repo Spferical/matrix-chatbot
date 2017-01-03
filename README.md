@@ -4,11 +4,12 @@ Matrix-chatbot connects to a Matrix (Matrix.org) server and responds to messages
 
 It automatically joins any rooms it is invited to and replies to any messages containing its username.
 
-The bot supports multiple backends: 'markov', implemented with markov chains, and 'megahal', which conencts to MegaHAL using its Python bindings.
+Its response rate per-room may be configured by issuing a `!rate` command to the bot in that room. To tell the bot to reply to about a tenth of messages, message `!rate 0.1`.
+
+Its response rate may be queried by messaging `!rate` without any arguments.
 
 ## Requirements
 - matrix-client
-- megahal (if using megahal backend)
 
 ## Usage
 
@@ -25,8 +26,10 @@ A dockerfile is also provided for running in docker.
 
 To build the image locally and run the chatbot:
 
+```
 $ docker build . -t matrix-chatbot
 $ docker run -it -v /host/data/path/:/matrixbot/data/ matrix-chatbot
 A config has been generated. Please set your bot's username, password, and homeserver in /host/data/path/config.cfg then run this again.
 $ vim /host/data/path/config.cfg
 $ docker run -d -v /host/data/path/:/matrixbot/data/ matrix-chatbot
+```
