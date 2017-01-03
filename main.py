@@ -177,7 +177,7 @@ class MarkovBackend(Backend):
 
         # we couldn't seed the reply from the input
         # fall back to random seed
-        if seed is None:
+        if seed is None and self.brain:
             num = random.randint(0, len(self.brain) - 1)
 
             def get_nth(generator, n):
