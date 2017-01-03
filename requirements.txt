@@ -1,2 +1,1 @@
-megahal==9.0.3
-matrix-client==0.0.2
+matrix-client==0.0.3
