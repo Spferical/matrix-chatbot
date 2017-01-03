@@ -162,6 +162,10 @@ class MarkovBackend(Backend):
         return p
 
     def reply(self, message):
+        # can't reply with an empty brain
+        if not self.brain:
+            return ''
+
         seed = None
         # try to seed reply from the message
         possible_seed_words = message.split()
@@ -177,7 +181,7 @@ class MarkovBackend(Backend):
 
         # we couldn't seed the reply from the input
         # fall back to random seed
-        if seed is None and self.brain:
+        if seed is None:
             num = random.randint(0, len(self.brain) - 1)
 
             def get_nth(generator, n):
