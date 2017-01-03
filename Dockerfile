@@ -1,15 +1,9 @@
-from debian
-
-run apt-get update && \
-	apt-get install -y \
-	python \
-	python-pip \
-	git
+from python:2-alpine
 
 env MATRIX_CHATBOT_CONFIG "/matrixbot/data/config.cfg"
 env MATRIX_CHATBOT_BRAIN "/matrixbot/data/brain.txt"
 
-run useradd matrixbot
+run adduser -S matrixbot
 
 workdir /matrixbot
 
