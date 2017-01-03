@@ -49,37 +49,36 @@ class Backend(object):
 
 
 class MarkovBrain(object):
-    """Wrapper around brain dictionary with self.mutexes to prevent concurrency
-    errors."""
+    """Threadsafe wrapper around brain dictionary."""
 
     def __init__(self):
         self._data = {}
-        self.mutex = threading.Lock()
+        self._mutex = threading.Lock()
 
     def set_followers(self, word_pair, followers):
-        with self.mutex:
+        with self._mutex:
             self._data[word_pair] = followers
 
     def get_followers(self, word_pair):
-        with self.mutex:
+        with self._mutex:
             return self._data.get(word_pair, [])
 
     def get_pairs(self):
-        with self.mutex:
+        with self._mutex:
             for pair in self._data:
                 yield pair
 
     def get_pairs_and_followers(self):
-        with self.mutex:
+        with self._mutex:
             for item in self._data.items():
                 yield item
 
     def contains_pair(self, word_pair):
-        with self.mutex:
+        with self._mutex:
             return word_pair in self._data
 
     def add(self, word_pair, follower):
-        with self.mutex:
+        with self._mutex:
             if word_pair in self._data:
                 followers = self._data[word_pair]
                 followers[follower] = followers.get(follower, 0) + 1
@@ -199,25 +198,25 @@ class MegaHALBackend(Backend):
     def __init__(self):
         # only loads megahal if backend is being used
         import mh_python
-        self.mh = mh_python
-        self.mutex = threading.Lock()
+        self._mh = mh_python
+        self._mutex = threading.Lock()
 
     def load_brain(self):
-        with self.mutex:
-            self.mh.initbrain()
+        with self._mutex:
+            self._mh.initbrain()
 
     def learn(self, line):
-        with self.mutex:
-            self.mh.learn(line.encode('utf8'))
+        with self._mutex:
+            self._mh.learn(line.encode('utf8'))
 
     def save(self):
-        with self.mutex:
-            self.mh.cleanup()
+        with self._mutex:
+            self._mh.cleanup()
 
     def reply(self, message):
-        with self.mutex:
+        with self._mutex:
             return unicode(
-                self.mh.doreply(message.encode('utf8')), 'utf8', 'replace')
+                self._mh.doreply(message.encode('utf8')), 'utf8', 'replace')
 
 
 class Config(object):
