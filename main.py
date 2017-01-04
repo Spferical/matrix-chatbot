@@ -7,17 +7,15 @@ import argparse
 import random
 from ConfigParser import ConfigParser
 import re
-import tempfile
-import shutil
-import codecs
 import traceback
 import urllib
 import threading
 import logging
-from itertools import islice
 import os
 import sys
 import signal
+
+from database import MarkovDatabaseBrain
 
 
 COMMANDS = [
@@ -56,88 +54,12 @@ class Backend(object):
         return "(dummy response)"
 
 
-class MarkovBrain(object):
-    """Threadsafe wrapper around brain dictionary."""
-
-    def __init__(self):
-        self._data = {}
-        self._mutex = threading.Lock()
-
-    def set_followers(self, word_pair, followers):
-        with self._mutex:
-            self._data[word_pair] = followers
-
-    def get_followers(self, word_pair):
-        with self._mutex:
-            return self._data.get(word_pair, [])
-
-    def get_pairs(self):
-        with self._mutex:
-            for pair in self._data:
-                yield pair
-
-    def get_pairs_and_followers(self):
-        with self._mutex:
-            for item in self._data.items():
-                yield item
-
-    def contains_pair(self, word_pair):
-        with self._mutex:
-            return word_pair in self._data
-
-    def add(self, word_pair, follower):
-        with self._mutex:
-            if word_pair in self._data:
-                followers = self._data[word_pair]
-                followers[follower] = followers.get(follower, 0) + 1
-            else:
-                self._data[word_pair] = {follower: 1}
-
-    def __len__(self):
-        return len(self._data)
-
-
 class MarkovBackend(Backend):
     def __init__(self, brain_file):
-        self.brain = MarkovBrain()
-        self.brain_file = brain_file
-
-    def load_brain(self):
-        # self.brain_file is a plaintext filepath.
-        # each line begins with two words, to form the prefix.
-        # After that, the line can have any number of pairs of 1 word and 1
-        # positive integer following the prefix. These are the words that may
-        # follow the prefix and their weight.
-        # e.g. "the fox jumped 2 ran 3 ate 1 ..."
-        try:
-            with codecs.open(self.brain_file, encoding='utf8',
-                             mode='r') as brainfile:
-                for line in brainfile:
-                    self.load_brain_line(line)
-        except IOError:
-            self.brain = MarkovBrain()
-
-    def load_brain_line(self, line):
-        words = line.rstrip().split(' ')
-        followers = {}
-        for i in range(2, len(words), 2):
-            followers[words[i]] = int(words[i + 1])
-        self.brain.set_followers(tuple(words[0:2]), followers)
-
-    def get_save_brain_lines(self):
-        for pair, followers in self.brain.get_pairs_and_followers():
-            line = u"{} {} ".format(pair[0], pair[1])
-            line += u' '.join(u"{} {}".format(word, followers[word]) for
-                              word in followers)
-            yield (line + u'\n').encode('utf8')
+        self.brain = MarkovDatabaseBrain(brain_file)
 
     def save(self):
-        with tempfile.NamedTemporaryFile(
-                'w', delete=False) as tf:
-            name = tf.name
-            for line in self.get_save_brain_lines():
-                tf.write(line)
-        shutil.move(name, self.brain_file)
+        pass
 
     def sanitize(self, word):
         return word.replace('\n', '').replace('\r', '').replace(u'\u2028', '')
@@ -169,8 +91,7 @@ class MarkovBackend(Backend):
         return p
 
     def reply(self, message):
-        # can't reply with an empty brain
-        if not self.brain:
+        if self.brain.is_empty():
             return ''
 
         seed = None
@@ -189,12 +110,7 @@ class MarkovBackend(Backend):
         # we couldn't seed the reply from the input
         # fall back to random seed
         if seed is None:
-            num = random.randint(0, len(self.brain) - 1)
-
-            def get_nth(generator, n):
-                return next(islice(generator, n, n + 1))
-
-            seed = get_nth(self.brain.get_pairs(), num)
+            seed = self.brain.get_three_random_words()
 
         words = list(seed)
         while self.brain.contains_pair((words[-2], words[-1])) and \
@@ -425,7 +341,7 @@ def main():
                            help="Train the bot with a file of text.")
     argparser.add_argument("--config", metavar="config.cfg", type=str,
                            help="Bot's config file (must be read-writable)")
-    argparser.add_argument("--brain", metavar="brain.txt", type=str,
+    argparser.add_argument("--brain", metavar="brain.db", type=str,
                            help="Bot's config file (must be read-writable)")
     args = vars(argparser.parse_args())
     debug = args['debug']
@@ -444,7 +360,7 @@ def main():
     config_path = args['config'] if args['config'] \
         else os.getenv('MATRIX_CHATBOT_CONFIG', 'config.cfg')
     brain_path = args['brain'] if args['brain'] \
-        else os.getenv('MATRIX_CHATBOT_BRAIN', 'brain.txt')
+        else os.getenv('MATRIX_CHATBOT_BRAIN', 'brain.db')
 
     cfgparser = ConfigParser()
     success = cfgparser.read(config_path)
