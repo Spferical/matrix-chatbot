@@ -35,33 +35,38 @@ class ConfigParser(ConfigParser):
 
 
 class Backend(object):
+    """Interface for chat backends."""
+    def __init__(self, brain_file):
+        pass
 
     def train_file(self, filename):
+        """Trains the chat backend on the given file."""
         with open(filename) as train_file:
             for line in train_file:
                 self.learn(line)
 
-    def load_brain(self):
-        pass
-
     def learn(self, line):
+        """Updates the chat backend based on the given line of input."""
         pass
 
     def save(self):
+        """Saves the backend to disk, if needed."""
         pass
 
     def reply(self, message):
+        """Generates a reply to the given message."""
         return "(dummy response)"
 
 
 class MarkovBackend(Backend):
+    """Chat backend using markov chains."""
     def __init__(self, brain_file):
         self.brain = MarkovDatabaseBrain(brain_file)
 
-    def save(self):
-        pass
-
     def sanitize(self, word):
+        """Removes any awkward whitespace characters from the given word.
+
+        Removes '\n', '\r', and '\u2028' (unicode newline character)."""
         return word.replace('\n', '').replace('\r', '').replace(u'\u2028', '')
 
     def learn(self, line):
@@ -74,6 +79,11 @@ class MarkovBackend(Backend):
             self.brain.add(prefix, follow)
 
     def get_random_next_link(self, word1, word2):
+        """Gives a word that could come after the two provided.
+
+        Words that follow the two given words are weighted by how frequently
+        they appear after them.
+        """
         possibilities = self.brain.get_followers((word1, word2))
         if not possibilities:
             return None
@@ -136,12 +146,14 @@ class Config(object):
             self.response_rates[room_id] = float(rate)
 
     def get_response_rate(self, room_id):
+        """Returns our response rate for the room with the given room id."""
         if room_id in self.response_rates:
             return self.response_rates[room_id]
         else:
             return self.default_response_rate
 
     def write(self):
+        """Writes this config back to the file, with any changes reflected."""
         cfgparser = ConfigParser()
         cfgparser.add_section('General')
         cfgparser.set('General', 'default response rate',
@@ -164,6 +176,7 @@ class Config(object):
 
 
 def get_default_configparser():
+    """Returns a ConfigParser object for the default config file."""
     config = ConfigParser(allow_no_value=True)
     config.add_section('General')
     config.set('General', 'default response rate', "0.10")
@@ -179,6 +192,7 @@ def get_default_configparser():
 
 
 class Bot(object):
+    """Handles everything that the bot does."""
     def __init__(self, config, chat_backend):
         self.config = config
         self.client = None
@@ -187,18 +201,22 @@ class Bot(object):
         self.room_id_queued = None
 
     def login(self):
+        """Logs onto the server."""
         client = MatrixClient(self.config.server)
         client.login_with_password(self.config.username, self.config.password)
         self.client = client
 
     def get_room(self, event):
+        """Returns the room the given event took place in."""
         return self.client.rooms[event['room_id']]
 
     def queue_reply(self, event, message):
+        """Queues a reply to the given event."""
         self.message_queued = message
         self.room_id_queued = event['room_id']
 
     def handle_command(self, event, command, args):
+        """Handles the given command, possibly sending a reply to it."""
         command = command.lower()
         if command == '!rate':
             if args:
@@ -218,16 +236,26 @@ class Bot(object):
                     event, "Response rate set to %f in this room." % rate)
 
     def reply(self, event, message):
+        """Replies to the given event with the provided message."""
         room = self.get_room(event)
         logging.info("Reply: %s" % message)
         room.send_text(message.encode('ascii', errors='ignore'))
 
     def is_name_in_message(self, message):
+        """Returns whether the message contains the bot's name.
+
+        Considers both display name and username.
+        """
         regex = "({}|{})".format(
             self.config.display_name, self.config.username)
         return re.search(regex, message, flags=re.IGNORECASE)
 
     def handle_event(self, event):
+        """Handles the given event.
+
+        Joins a room if invited, learns from messages, and possibly responds to
+        messages.
+        """
         # join rooms if invited
         if event['type'] == 'm.room.member':
             if 'content' in event and 'membership' in event['content']:
@@ -268,16 +296,19 @@ class Bot(object):
         self.send_read_receipt(event)
 
     def set_display_name(self, display_name):
+        """Sets the bot's display name on the server."""
         body = {"displayname": display_name}
         return self.client.api._send(
             "PUT", "/profile/" + self.client.user_id + "/displayname", body)
 
     def get_display_name(self):
+        """Gets the bot's display name from the server."""
         response = self.client.api._send(
             "GET", "/profile/" + self.client.user_id + "/displayname")
         return response['displayname']
 
     def run(self):
+        """Indefinitely listens for messages and handles all that come."""
         current_display_name = self.get_display_name()
         if current_display_name != self.config.display_name:
             self.set_display_name(self.config.display_name)
@@ -316,6 +347,7 @@ class Bot(object):
                 last_save = time.time()
 
     def send_read_receipt(self, event):
+        """Sends a read receipt for the given event."""
         if "room_id" in event and "event_id" in event:
             room_id = urllib.quote(event['room_id'].encode('utf8'))
             event_id = urllib.quote(event['event_id'].encode('utf8'))
@@ -325,6 +357,7 @@ class Bot(object):
 
 
 def train(backend, train_file):
+    """Trains the given chat backend on the given train_file & saves it."""
     print("Training...")
     backend.train_file(train_file)
     print("Training complete!")
@@ -378,7 +411,6 @@ def main():
     backends = {'markov': MarkovBackend}
     backend = backends[config.backend](brain_path)
     logging.info("loading brain")
-    backend.load_brain()
 
     if train_path:
         train(backend, train_path)
