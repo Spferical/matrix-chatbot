@@ -9,7 +9,11 @@ Its response rate per-room may be configured by issuing a `!rate` command to the
 Its response rate may be queried by messaging `!rate` without any arguments.
 
 ## Requirements
-- matrix-client
+- Python v2.7
+- matrix-client v0.0.3
+- SQLAlchemy v1.1.4
+
+`pip install -r requirements.txt`
 
 ## Usage
 
