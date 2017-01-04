@@ -375,7 +375,7 @@ def main():
     argparser.add_argument("--config", metavar="config.cfg", type=str,
                            help="Bot's config file (must be read-writable)")
     argparser.add_argument("--brain", metavar="brain.db", type=str,
-                           help="Bot's config file (must be read-writable)")
+                           help="Bot's brain file (must be read-writable)")
     args = vars(argparser.parse_args())
     debug = args['debug']
 
