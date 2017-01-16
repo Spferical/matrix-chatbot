@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 import signal
+import Queue
 
 from database import MarkovDatabaseBrain
 
@@ -197,8 +198,7 @@ class Bot(object):
         self.config = config
         self.client = None
         self.chat_backend = chat_backend
-        self.message_queued = None
-        self.room_id_queued = None
+        self.event_queue = Queue.Queue()
 
     def login(self):
         """Logs onto the server."""
@@ -209,11 +209,6 @@ class Bot(object):
     def get_room(self, event):
         """Returns the room the given event took place in."""
         return self.client.rooms[event['room_id']]
-
-    def queue_reply(self, event, message):
-        """Queues a reply to the given event."""
-        self.message_queued = message
-        self.room_id_queued = event['room_id']
 
     def handle_command(self, event, command, args):
         """Handles the given command, possibly sending a reply to it."""
@@ -290,7 +285,7 @@ class Bot(object):
                             ' *' + re.escape(self.get_display_name()) + ' *',
                             ' ', message, flags=re.IGNORECASE)
                         response = self.chat_backend.reply(message_no_name)
-                        self.queue_reply(event, response)
+                        self.reply(event, response)
                     if self.config.learning:
                         self.chat_backend.learn(message)
         self.send_read_receipt(event)
@@ -319,8 +314,9 @@ class Bot(object):
         logging.info("initial event stream")
         self.client.listen_for_events()
 
-        # set the callback and start listening in a background thread
-        self.client.add_listener(self.handle_event)
+        # listen to events and add them all to the event queue
+        # for handling in this thread
+        self.client.add_listener(self.event_queue.put)
 
         # start listen thread
         logging.info("starting listener thread")
@@ -330,21 +326,28 @@ class Bot(object):
 
         while True:
             time.sleep(1)
+
             # restart thread if dead
             if not thread.is_alive():
                 thread = threading.Thread(target=self.client.listen_forever)
                 thread.daemon = True
                 thread.start()
-            # send any queued messages
-            if self.message_queued:
-                room = self.client.rooms[self.room_id_queued]
-                logging.info("Sending message: " + self.message_queued)
-                room.send_text(self.message_queued)
-                self.room_id_queued = self.message_queued = None
+
+            # handle any queued events
+            while not self.event_queue.empty():
+                event = self.event_queue.get_nowait()
+                self.handle_event(event)
+
             # save every 10 minutes or so
             if time.time() - last_save > 60 * 10:
                 self.chat_backend.save()
                 last_save = time.time()
+
+    def send_message(self, message, room_id):
+        """Sends a message to a room."""
+        room = self.client.rooms[room_id]
+        logging.info("Sending message: " + message)
+        room.send_text(message)
 
     def send_read_receipt(self, event):
         """Sends a read receipt for the given event."""
