@@ -15,7 +15,7 @@ class MarkovEntry(Base):
     word2 = Column(String(255))
     follower = Column(String(255))
     count = Column(Integer, nullable=False)
-    Index("word_pair", "word1", "word2")
+    word_pair = Index("word_pair", "word1", "word2")
 
 
 class MarkovDatabaseBrain(object):
@@ -48,15 +48,18 @@ class MarkovDatabaseBrain(object):
             .filter_by(word1=word1, word2=word2)
         return {entry.follower: entry.count for entry in entries}
 
-    def get_pairs(self):
-        entries = self.session.query(MarkovEntry)
-        return ((entry.word1, entry.word2) for entry in entries)
-
     def contains_pair(self, word_pair):
         word1, word2 = word_pair
         return bool(self.session.query(MarkovEntry)
                     .filter_by(word1=word1, word2=word2)
                     .first())
+
+    def get_pairs_containing_word(self, word):
+        word = word.lower()
+        entries = self.session.query(MarkovEntry)\
+            .filter((MarkovEntry.word1 == word) | (MarkovEntry.word2 == word))\
+            .distinct(MarkovEntry.word_pair)
+        return ((entry.word1, entry.word2) for entry in entries)
 
     def get_three_random_words(self):
         assert not self.is_empty()
