@@ -43,7 +43,7 @@ class TestMarkov(unittest.TestCase):
         configparser = main.get_default_configparser()
         configparser.set('General', 'display name', 'DisplayName')
         config = main.Config(configparser)
-        bot = main.Bot(config, main.Backend())
+        bot = main.Bot(config, main.Backend(""))
 
         self.assertTrue(bot.is_name_in_message("displayName?"))
         self.assertTrue(bot.is_name_in_message("what up displayName? sdf"))
