@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Index
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 import random
 
@@ -54,10 +54,11 @@ class MarkovDatabaseBrain(object):
                     .filter_by(word1=word1, word2=word2)
                     .first())
 
-    def get_pairs_containing_word(self, word):
+    def get_pairs_containing_word_ignoring_case(self, word):
         word = word.lower()
         entries = self.session.query(MarkovEntry)\
-            .filter((MarkovEntry.word1 == word) | (MarkovEntry.word2 == word))\
+            .filter((func.lower(MarkovEntry.word1) == word) |
+                    (func.lower(MarkovEntry.word2) == word))\
             .distinct(MarkovEntry.word_pair)
         return ((entry.word1, entry.word2) for entry in entries)
 

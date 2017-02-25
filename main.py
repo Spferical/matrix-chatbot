@@ -109,7 +109,8 @@ class MarkovBackend(Backend):
         possible_seed_words = message.split()
         while seed is None and possible_seed_words:
             message_word = random.choice(possible_seed_words)
-            seeds = list(self.brain.get_pairs_containing_word(message_word))
+            seeds = list(self.brain.get_pairs_containing_word_ignoring_case(
+                    message_word))
             if seeds:
                 seed = random.choice(seeds)
             else:
