@@ -3,6 +3,8 @@ from python:2-alpine
 env MATRIX_CHATBOT_CONFIG "/matrixbot/data/config.cfg"
 env MATRIX_CHATBOT_BRAIN "/matrixbot/data/brain.db"
 
+run apk add --no-cache git
+
 run adduser -S matrixbot
 
 workdir /matrixbot
