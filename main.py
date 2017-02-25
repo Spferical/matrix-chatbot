@@ -9,7 +9,6 @@ from ConfigParser import ConfigParser
 import re
 import traceback
 import urllib
-import threading
 import logging
 import os
 import sys
@@ -258,7 +257,7 @@ class Bot(object):
                     logging.info('Joined room ' + room)
         elif event['type'] == 'm.room.message':
             # only care about text messages by other people
-            if event['user_id'] != self.client.user_id and \
+            if event['sender'] != self.client.user_id and \
                     event['content']['msgtype'] == 'm.text':
                 message = unicode(event['content']['body'])
                 # lowercase message so we can search it
@@ -290,15 +289,11 @@ class Bot(object):
 
     def set_display_name(self, display_name):
         """Sets the bot's display name on the server."""
-        body = {"displayname": display_name}
-        return self.client.api._send(
-            "PUT", "/profile/" + self.client.user_id + "/displayname", body)
+        self.client.api.set_display_name(self.client.user_id, display_name)
 
     def get_display_name(self):
         """Gets the bot's display name from the server."""
-        response = self.client.api._send(
-            "GET", "/profile/" + self.client.user_id + "/displayname")
-        return response['displayname']
+        return self.client.api.get_display_name(self.client.user_id)
 
     def run(self):
         """Indefinitely listens for messages and handles all that come."""
@@ -318,28 +313,24 @@ class Bot(object):
 
         # start listen thread
         logging.info("starting listener thread")
-        thread = threading.Thread(target=self.client.listen_forever)
-        thread.daemon = True
-        thread.start()
+        self.client.start_listener_thread()
 
-        while True:
-            time.sleep(1)
+        try:
+            while True:
+                time.sleep(1)
 
-            # restart thread if dead
-            if not thread.is_alive():
-                thread = threading.Thread(target=self.client.listen_forever)
-                thread.daemon = True
-                thread.start()
+                # handle any queued events
+                while not self.event_queue.empty():
+                    event = self.event_queue.get_nowait()
+                    self.handle_event(event)
 
-            # handle any queued events
-            while not self.event_queue.empty():
-                event = self.event_queue.get_nowait()
-                self.handle_event(event)
-
-            # save every 10 minutes or so
-            if time.time() - last_save > 60 * 10:
-                self.chat_backend.save()
-                last_save = time.time()
+                # save every 10 minutes or so
+                if time.time() - last_save > 60 * 10:
+                    self.chat_backend.save()
+                    last_save = time.time()
+        finally:
+            logging.info("stopping listener thread")
+            self.client.stop_listener_thread()
 
     def send_message(self, message, room_id):
         """Sends a message to a room."""

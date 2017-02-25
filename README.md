@@ -10,7 +10,7 @@ Its response rate may be queried by messaging `!rate` without any arguments.
 
 ## Requirements
 - Python v2.7
-- matrix-client v0.0.3
+- matrix-client
 - SQLAlchemy v1.1.4
 
 `pip install -r requirements.txt`
