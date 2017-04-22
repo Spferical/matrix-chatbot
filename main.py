@@ -14,9 +14,7 @@ import os
 import sys
 import signal
 import Queue
-
 from database import MarkovDatabaseBrain
-
 
 COMMANDS = [
     '!rate'
