@@ -21,7 +21,7 @@ Its response rate may be queried by messaging `!rate` without any arguments.
 
 The first time you run it, a config file will be generated for you to edit as needed.
 
-You may also want to "train" your bot with a text file before you run it. This can be done with
+You may also "train" your bot with a UTF-8 text file before you run it. This can be done with
 `$ python main.py --train trainfile.txt`
 
 ## Docker

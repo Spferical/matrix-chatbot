@@ -14,6 +14,7 @@ import os
 import sys
 import signal
 import Queue
+import codecs
 from database import MarkovDatabaseBrain
 
 COMMANDS = [
@@ -39,7 +40,7 @@ class Backend(object):
 
     def train_file(self, filename):
         """Trains the chat backend on the given file."""
-        with open(filename) as train_file:
+        with codecs.open(filename, encoding='utf8') as train_file:
             for line in train_file:
                 self.learn(line)
 
