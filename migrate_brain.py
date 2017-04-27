@@ -19,7 +19,7 @@ def load_brain(brain_file, dbbrain):
         for line in brainfile:
             load_brain_line(line, dbbrain)
 
-    dbbrain.session.commit()
+    dbbrain.save()
 
 
 def load_brain_line(line, dbbrain):
@@ -29,8 +29,7 @@ def load_brain_line(line, dbbrain):
         followers[words[i]] = int(words[i + 1])
     word_pair = tuple(words[0:2])
     for (follower, count) in followers.iteritems():
-        dbbrain.add(word_pair, follower, count=count, commit=False,
-                    check_existing=False)
+        dbbrain.add(word_pair, follower, count=count, check_existing=False)
 
 
 def main():

@@ -68,6 +68,12 @@ class MarkovBackend(Backend):
         Removes '\n', '\r', and '\u2028' (unicode newline character)."""
         return word.replace('\n', '').replace('\r', '').replace(u'\u2028', '')
 
+    def train_file(self, filename):
+        with codecs.open(filename, encoding='utf8') as train_file:
+            for line in train_file:
+                self.learn(line)
+        self.save()
+
     def learn(self, line):
         line = line.strip()
         words = line.split(' ')
@@ -76,6 +82,9 @@ class MarkovBackend(Backend):
             prefix = words[i], words[i + 1]
             follow = words[i + 2]
             self.brain.add(prefix, follow)
+
+    def save(self):
+        self.brain.save()
 
     def get_random_next_link(self, word1, word2):
         """Gives a word that could come after the two provided.

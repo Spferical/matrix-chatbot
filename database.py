@@ -27,8 +27,7 @@ class MarkovDatabaseBrain(object):
         Session = sessionmaker(bind=engine)
         self.session = Session()
 
-    def add(self, word_pair, follower, count=1, commit=True,
-            check_existing=True):
+    def add(self, word_pair, follower, count=1, check_existing=True):
         word1, word2 = word_pair
         entry = check_existing and self.session.query(MarkovEntry) \
             .filter_by(word1=word1, word2=word2, follower=follower) \
@@ -39,8 +38,6 @@ class MarkovDatabaseBrain(object):
             new_entry = MarkovEntry(
                 word1=word1, word2=word2, follower=follower, count=count)
             self.session.add(new_entry)
-        if commit:
-            self.session.commit()
 
     def get_followers(self, word_pair):
         word1, word2 = word_pair
@@ -73,3 +70,6 @@ class MarkovDatabaseBrain(object):
     def is_empty(self):
         query = self.session.query(MarkovEntry)
         return query.first() is None
+
+    def save(self):
+        self.session.commit()
