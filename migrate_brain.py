@@ -28,7 +28,7 @@ def load_brain_line(line, dbbrain):
     for i in range(2, len(words), 2):
         followers[words[i]] = int(words[i + 1])
     word_pair = tuple(words[0:2])
-    for (follower, count) in followers.iteritems():
+    for (follower, count) in followers.items():
         dbbrain.add(word_pair, follower, count=count, check_existing=False)
 
 

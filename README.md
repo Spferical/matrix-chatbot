@@ -9,7 +9,7 @@ Its response rate per-room may be configured by issuing a `!rate` command to the
 Its response rate may be queried by messaging `!rate` without any arguments.
 
 ## Requirements
-- Python v2.7
+- Python v3.5
 - matrix-client
 - SQLAlchemy v1.1.4
 
@@ -17,12 +17,12 @@ Its response rate may be queried by messaging `!rate` without any arguments.
 
 ## Usage
 
-`$ python main.py`
+`$ python3 main.py`
 
 The first time you run it, a config file will be generated for you to edit as needed.
 
 You may also "train" your bot with a UTF-8 text file before you run it. This can be done with
-`$ python main.py --train trainfile.txt`
+`$ python3 main.py --train trainfile.txt`
 
 ## Docker
 

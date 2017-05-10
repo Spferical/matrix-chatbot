@@ -1,19 +1,19 @@
-from __future__ import print_function
+
 import time
 from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixRequestError
 from requests.exceptions import ConnectionError
 import argparse
 import random
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import re
 import traceback
-import urllib
+import urllib.parse
 import logging
 import os
 import sys
 import signal
-import Queue
+import queue
 import codecs
 from database import MarkovDatabaseBrain
 
@@ -65,8 +65,8 @@ class MarkovBackend(Backend):
     def sanitize(self, word):
         """Removes any awkward whitespace characters from the given word.
 
-        Removes '\n', '\r', and '\u2028' (unicode newline character)."""
-        return word.replace('\n', '').replace('\r', '').replace(u'\u2028', '')
+        Removes '\n', '\r', and '\\u2028' (unicode newline character)."""
+        return word.replace('\n', '').replace('\r', '').replace('\u2028', '')
 
     def train_file(self, filename):
         with codecs.open(filename, encoding='utf8') as train_file:
@@ -167,13 +167,13 @@ class Config(object):
                       str(self.default_response_rate))
         cfgparser.set('General', 'backend', self.backend)
         cfgparser.set('General', 'display name', self.display_name)
-        cfgparser.set('General', 'learning', self.learning)
+        cfgparser.set('General', 'learning', str(self.learning))
         cfgparser.add_section('Login')
         cfgparser.set('Login', 'username', self.username)
         cfgparser.set('Login', 'password', self.password)
         cfgparser.set('Login', 'server', self.server)
         cfgparser.add_section('Response Rates')
-        for room_id, rate in self.response_rates.items():
+        for room_id, rate in list(self.response_rates.items()):
             # censor colons because they are a configparser special
             # character
             room_id = room_id.replace(':', '-colon-')
@@ -204,7 +204,7 @@ class Bot(object):
         self.config = config
         self.client = None
         self.chat_backend = chat_backend
-        self.event_queue = Queue.Queue()
+        self.event_queue = queue.Queue()
 
     def login(self):
         """Logs onto the server."""
@@ -240,7 +240,7 @@ class Bot(object):
         """Replies to the given event with the provided message."""
         room = self.get_room(event)
         logging.info("Reply: %s" % message)
-        room.send_text(message.encode('ascii', errors='ignore'))
+        room.send_text(message)
 
     def is_name_in_message(self, message):
         """Returns whether the message contains the bot's name.
@@ -268,7 +268,7 @@ class Bot(object):
             # only care about text messages by other people
             if event['sender'] != self.client.user_id and \
                     event['content']['msgtype'] == 'm.text':
-                message = unicode(event['content']['body'])
+                message = str(event['content']['body'])
                 # lowercase message so we can search it
                 # case-insensitively
                 logging.info("Handling message: %s" % message)
@@ -350,8 +350,8 @@ class Bot(object):
     def send_read_receipt(self, event):
         """Sends a read receipt for the given event."""
         if "room_id" in event and "event_id" in event:
-            room_id = urllib.quote(event['room_id'].encode('utf8'))
-            event_id = urllib.quote(event['event_id'].encode('utf8'))
+            room_id = urllib.parse.quote(event['room_id'])
+            event_id = urllib.parse.quote(event['event_id'])
             self.client.api._send("POST", "/rooms/" + room_id +
                                   "/receipt/m.read/" + event_id,
                                   api_path="/_matrix/client/r0")

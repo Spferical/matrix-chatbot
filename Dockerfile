@@ -1,4 +1,4 @@
-from python:2-alpine
+from python:3-alpine
 
 env MATRIX_CHATBOT_CONFIG "/matrixbot/data/config.cfg"
 env MATRIX_CHATBOT_BRAIN "/matrixbot/data/brain.db"

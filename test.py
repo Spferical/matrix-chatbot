@@ -33,11 +33,11 @@ class TestMarkov(unittest.TestCase):
         self.assertIn("ALL", reply.split())
 
     def test_brain(self):
-        self.markov.learn(u'Test that first and second are '
+        self.markov.learn('Test that first and second are '
                           '\n\nap\n\npro\nximately\n\r\n')
         self.assertEqual(
-            self.markov.brain.get_followers((u'second', u'are')),
-            {u'approximately': 1})
+            self.markov.brain.get_followers(('second', 'are')),
+            {'approximately': 1})
 
     def test_is_name_in_message(self):
         configparser = main.get_default_configparser()
