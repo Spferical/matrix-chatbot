@@ -205,11 +205,13 @@ class Bot(object):
         self.client = None
         self.chat_backend = chat_backend
         self.event_queue = queue.Queue()
+        self.invite_queue = queue.Queue()
 
     def login(self):
         """Logs onto the server."""
         client = MatrixClient(self.config.server)
-        client.login_with_password(self.config.username, self.config.password)
+        client.login_with_password_no_sync(
+            self.config.username, self.config.password)
         self.client = client
 
     def get_room(self, event):
@@ -251,20 +253,25 @@ class Bot(object):
             self.config.display_name, self.config.username)
         return re.search(regex, message, flags=re.IGNORECASE)
 
+    def handle_invite(self, room_id, invite_state):
+        # join rooms if invited
+        try:
+            self.client.join_room(room_id)
+            logging.info('Joined room', room_id)
+        except MatrixRequestError as e:
+            if e.code == 404:
+                # room was deleted after invite or something; ignore it
+                logging.info('invited to nonexistent room {}'.format(room_id))
+            else:
+                raise(e)
+
     def handle_event(self, event):
         """Handles the given event.
 
         Joins a room if invited, learns from messages, and possibly responds to
         messages.
         """
-        # join rooms if invited
-        if event['type'] == 'm.room.member':
-            if 'content' in event and 'membership' in event['content']:
-                if event['content']['membership'] == 'invite':
-                    room = event['room_id']
-                    self.client.join_room(room)
-                    logging.info('Joined room ' + room)
-        elif event['type'] == 'm.room.message':
+        if event['type'] == 'm.room.message':
             # only care about text messages by other people
             if event['sender'] != self.client.user_id and \
                     event['content']['msgtype'] == 'm.text':
@@ -312,6 +319,10 @@ class Bot(object):
 
         last_save = time.time()
 
+        # listen for invites, including initial sync invites
+        self.client.add_invite_listener(
+            lambda room_id, state: self.invite_queue.put((room_id, state)))
+
         # get rid of initial event sync
         logging.info("initial event stream")
         self.client.listen_for_events()
@@ -332,6 +343,10 @@ class Bot(object):
                 while not self.event_queue.empty():
                     event = self.event_queue.get_nowait()
                     self.handle_event(event)
+
+                while not self.invite_queue.empty():
+                    room_id, invite_state = self.invite_queue.get_nowait()
+                    self.handle_invite(room_id, invite_state)
 
                 # save every 10 minutes or so
                 if time.time() - last_save > 60 * 10:
