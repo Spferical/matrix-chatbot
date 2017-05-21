@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 import time
 from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixRequestError
