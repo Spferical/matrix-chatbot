@@ -242,7 +242,7 @@ class Bot(object):
         """Replies to the given event with the provided message."""
         room = self.get_room(event)
         logging.info("Reply: %s" % message)
-        room.send_text(message)
+        room.send_notice(message)
 
     def is_name_in_message(self, message):
         """Returns whether the message contains the bot's name.
@@ -355,12 +355,6 @@ class Bot(object):
         finally:
             logging.info("stopping listener thread")
             self.client.stop_listener_thread()
-
-    def send_message(self, message, room_id):
-        """Sends a message to a room."""
-        room = self.client.rooms[room_id]
-        logging.info("Sending message: " + message)
-        room.send_text(message)
 
     def send_read_receipt(self, event):
         """Sends a read receipt for the given event."""
