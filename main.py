@@ -2,7 +2,7 @@
 import time
 from matrix_client.client import MatrixClient
 from matrix_client.api import MatrixRequestError
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, Timeout
 import argparse
 import random
 from configparser import ConfigParser
@@ -331,9 +331,15 @@ class Bot(object):
         # for handling in this thread
         self.client.add_listener(self.event_queue.put)
 
+        def exception_handler(e):
+            if isinstance(e, Timeout):
+                logging.warning("listener thread timed out.")
+            logging.error("exception in listener thread:")
+            traceback.print_exc()
+
         # start listen thread
         logging.info("starting listener thread")
-        self.client.start_listener_thread()
+        self.client.start_listener_thread(exception_handler=exception_handler)
 
         try:
             while True:
