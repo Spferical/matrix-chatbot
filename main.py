@@ -257,7 +257,7 @@ class Bot(object):
         # join rooms if invited
         try:
             self.client.join_room(room_id)
-            logging.info('Joined room: %s' & room_id)
+            logging.info('Joined room: %s' % room_id)
         except MatrixRequestError as e:
             if e.code == 404:
                 # room was deleted after invite or something; ignore it
