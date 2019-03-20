@@ -262,6 +262,10 @@ class Bot(object):
             if e.code == 404:
                 # room was deleted after invite or something; ignore it
                 logging.info('invited to nonexistent room {}'.format(room_id))
+            elif e.code in range(500, 600):
+                # synapse v0.99.1 500s if it cannot locate a room sometimes
+                # (when there are federation issues)
+                logging.warning('got 500 trying to join room we were invited to')
             else:
                 raise(e)
 
