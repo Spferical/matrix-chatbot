@@ -1,2 +1,2 @@
--e git://github.com/Spferical/matrix-python-sdk.git@e200f0b811cdc8d87f9778395b372aa7d06e9beb#egg=matrix_client
+-e git://github.com/Spferical/matrix-python-sdk.git@d94af17c1aa6816920c396e4faa15b8c0ad3365b#egg=matrix_client
 SQLAlchemy==1.1.4
